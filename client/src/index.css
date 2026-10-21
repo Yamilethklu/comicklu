@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html, body { background: #eef1f8; color: #16132b; }
+body { font-family: Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-ink px-4 py-2 text-sm font-bold
+      transition active:translate-x-[2px] active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-50
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zap;
+  }
+  .btn-pop { @apply btn bg-pop text-white shadow-hard active:shadow-hard-sm; }
+  .btn-sun { @apply btn bg-sun text-ink shadow-hard active:shadow-hard-sm; }
+  .btn-ghost { @apply btn bg-white text-ink hover:bg-ink/5; }
+  .field {
+    @apply w-full rounded-lg border-2 border-ink bg-white px-3 py-2 text-sm placeholder:text-ink/40
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zap;
+  }
+  .label { @apply mb-1 block text-sm font-bold; }
+  .frame { @apply rounded-xl border-[3px] border-ink bg-white; }
+  .halftone {
+    background-image: radial-gradient(#16132b 1.2px, transparent 1.4px);
+    background-size: 9px 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792200975118,
+      "tag": "0000_fast_tinkerer",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792607669850,
+      "tag": "0001_password_resets",
+      "breakpoints": true
+    }
+  ]
+}
