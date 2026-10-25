@@ -13,6 +13,10 @@ function need(name: string, fallbackDev?: string): string {
   return v;
 }
 
+if (Boolean(process.env.SUPABASE_URL) !== Boolean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+  throw new Error("Configura SUPABASE_URL y SUPABASE_SECRET_KEY juntas.");
+}
+
 export const env = {
   isProd,
   port: Number(process.env.PORT ?? 5000),
@@ -20,6 +24,9 @@ export const env = {
   sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
   appUrl,
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
+  supabaseUrl: process.env.SUPABASE_URL ?? "",
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  supabaseBucket: process.env.SUPABASE_STORAGE_BUCKET ?? "comicklu-media",
   https: appUrl.startsWith("https://"),
   adminEmails: (process.env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
 

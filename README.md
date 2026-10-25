@@ -79,4 +79,4 @@ La misma app web se empaqueta como app nativa; el servidor es el mismo (cuentas,
   Mira la sección de pagos antes de activar `VITE_NATIVE_EXTERNAL_CHECKOUT=true`.
 
 ## Configuración de producción preparada
-Consulta [docs/PRODUCCION.md](docs/PRODUCCION.md). `render.yaml` define aplicación, base de datos y disco persistente; requiere aplicar el Blueprint en tu cuenta de Render.
+Consulta [docs/PRODUCCION.md](docs/PRODUCCION.md). `render.yaml` usa Render Free; Supabase conserva la base de datos y los archivos sin disco persistente de Render. Requiere configurar el proyecto y las credenciales de Supabase antes de desplegar.

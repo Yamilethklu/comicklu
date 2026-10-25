@@ -10,8 +10,7 @@ import { hashPassword, verifyPassword, publicUser, requireAuth } from "../auth";
 import { env, stripeEnabled, aiEnabled, mailEnabled } from "../env";
 import { sendMail } from "../mail";
 import { getStripe } from "../stripe";
-import { localPathFromUrl } from "../files";
-import fs from "node:fs/promises";
+import { deleteMedia } from "../files";
 import { PLANS } from "@shared/plans";
 import { effectivePlan, getUsage, comicCount } from "../usage";
 
@@ -153,11 +152,10 @@ authRouter.delete("/account", requireAuth, limiter, async (req, res) => {
   }
 
   const files = await db.select({ url: assets.url }).from(assets).where(eq(assets.userId, user.id));
-  await db.delete(users).where(eq(users.id, user.id)); // borra en cascada cómics, viñetas, uso, renders y assets
   await Promise.all(files.map(async (f) => {
-    const p = localPathFromUrl(f.url);
-    if (p) await fs.unlink(p).catch(() => {});
+    await deleteMedia(f.url);
   }));
+  await db.delete(users).where(eq(users.id, user.id));
   await dropSessions(user.id);
   req.session.destroy(() => {
     res.clearCookie("comic.sid");

@@ -1,11 +1,10 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { env } from "./env";
-import { localPathFromUrl, uploadRoot, ensureUploadDir } from "./files";
+import { materializeMedia, saveBuffer } from "./files";
 import type { Panel } from "@shared/schema";
 
 const W = 1280;
@@ -68,9 +67,9 @@ function wrap(text: string, width = 48): string[] {
 }
 
 async function renderSegment(p: Panel, dir: string, index: number): Promise<string> {
-  const image = p.imageUrl ? localPathFromUrl(p.imageUrl) : null;
+  const image = await materializeMedia(p.imageUrl, dir);
   const imageOk = image && fs.existsSync(image) ? image : null;
-  const voice = p.voiceUrl ? localPathFromUrl(p.voiceUrl) : null;
+  const voice = await materializeMedia(p.voiceUrl, dir);
   const voiceOk = voice && fs.existsSync(voice) ? voice : null;
 
   const text = [p.caption, p.dialogue].map((s) => s.trim()).filter(Boolean).join("\n");
@@ -133,10 +132,8 @@ export async function renderComicVideo(panels: Panel[]): Promise<string> {
     const merged = path.join(dir, "final.mp4");
     await runFfmpeg(["-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", merged]);
 
-    await ensureUploadDir();
-    const name = `${randomUUID()}.mp4`;
-    await fsp.copyFile(merged, path.join(uploadRoot, name));
-    return `/media/${name}`;
+    if ((await fsp.stat(merged)).size > 50 * 1024 * 1024) throw new Error("El video supera el límite de almacenamiento de 50 MB");
+    return await saveBuffer(await fsp.readFile(merged), "mp4");
   } finally {
     await fsp.rm(dir, { recursive: true, force: true }).catch(() => {});
   }

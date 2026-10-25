@@ -1,35 +1,29 @@
-# Review the paid compute, database and disk costs in Render before applying.
+# Supabase is configured separately; this file creates no paid Render resources.
 services:
   - type: web
-    name: comicklu
+    name: comicklu-1
     runtime: docker
     repo: https://github.com/Yamilethklu/comicklu
     branch: main
-    plan: standard
+    region: ohio
+    plan: free
     healthCheckPath: /api/health
-    disk:
-      name: comicklu-media
-      mountPath: /data
-      sizeGB: 10
     envVars:
       - key: NODE_ENV
         value: production
       - key: SESSION_SECRET
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: comicklu-db
-          property: connectionString
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: comicklu-media
       - key: UPLOAD_DIR
-        value: /data/uploads
+        value: /tmp/comicklu-uploads
       - key: FFMPEG_PATH
         value: /usr/bin/ffmpeg
       - key: AI_PROVIDER
         value: free
-
-databases:
-  - name: comicklu-db
-    databaseName: comicklu
-    user: comicklu
-    plan: basic-256mb
-    ipAllowList: []

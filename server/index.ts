@@ -6,6 +6,10 @@ import signature from "cookie-signature";
 import path from "node:path";
 import fs from "node:fs";
 import http from "node:http";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { cloudStorageEnabled, signedObjectUrl } from "./cloud-storage";
+import { localPathFromUrl } from "./files";
 import { ZodError } from "zod";
 import { env } from "./env";
 import { pool, runMigrations } from "./db";
@@ -79,7 +83,27 @@ export async function createApp() {
   });
 
   // Los archivos se sirven antes de la sesión: así no consultan la base de datos en cada imagen.
-  app.use("/media", express.static(uploadRoot, { maxAge: "7d", immutable: true, index: false, dotfiles: "deny" }));
+  if (cloudStorageEnabled()) {
+    // Keep existing unguessable /media UUID URLs, including native app media URLs.
+    // Stream through our origin so CSP and mobile playback remain compatible.
+    app.get("/media/:name", async (req, res) => {
+      if (!localPathFromUrl(`/media/${req.params.name}`)) return void res.sendStatus(404);
+      const upstream = await fetch(await signedObjectUrl(String(req.params.name)), {
+        headers: req.headers.range ? { Range: req.headers.range } : {},
+        signal: AbortSignal.timeout(120_000),
+      });
+      res.status(upstream.status);
+      for (const key of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+        const value = upstream.headers.get(key);
+        if (value) res.setHeader(key, value);
+      }
+      res.setHeader("Cache-Control", "private, max-age=60");
+      if (!upstream.body) return void res.end();
+      await pipeline(Readable.fromWeb(upstream.body as any), res);
+    });
+  } else {
+    app.use("/media", express.static(uploadRoot, { maxAge: "7d", immutable: true, index: false, dotfiles: "deny" }));
+  }
 
   const PgStore = connectPgSimple(session);
   app.use(session({
