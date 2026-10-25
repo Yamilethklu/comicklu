@@ -77,3 +77,6 @@ La misma app web se empaqueta como app nativa; el servidor es el mismo (cuentas,
 - En la app la sesión usa un token `Bearer` (la web sigue con cookie). Las imágenes/audios/videos se cargan desde `VITE_API_URL`.
 - **Pagos:** por defecto la app no muestra botones de compra (Apple/Google tienen reglas propias para suscripciones digitales).
   Mira la sección de pagos antes de activar `VITE_NATIVE_EXTERNAL_CHECKOUT=true`.
+
+## Configuración de producción preparada
+Consulta [docs/PRODUCCION.md](docs/PRODUCCION.md). `render.yaml` define aplicación, base de datos y disco persistente; requiere aplicar el Blueprint en tu cuenta de Render.

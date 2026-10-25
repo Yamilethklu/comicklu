@@ -1,0 +1,41 @@
+name: Verify production build
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: comic
+          POSTGRES_PASSWORD: comic
+          POSTGRES_DB: comicdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://comic:comic@localhost:5432/comicdb
+      FFMPEG_PATH: /usr/bin/ffmpeg
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm test

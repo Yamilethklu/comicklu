@@ -1,6 +1,11 @@
 import "dotenv/config";
 
 const isProd = process.env.NODE_ENV === "production";
+// Render supplies this URL after assigning the public hostname.
+const appUrl = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT ?? 5000}`).replace(/\/$/, "");
+if (isProd && new URL(appUrl).protocol !== "https:") {
+  throw new Error("Configura APP_URL con https o despliega con RENDER_EXTERNAL_URL.");
+}
 
 function need(name: string, fallbackDev?: string): string {
   const v = process.env[name] ?? (isProd ? undefined : fallbackDev);
@@ -13,9 +18,9 @@ export const env = {
   port: Number(process.env.PORT ?? 5000),
   databaseUrl: need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
   sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
-  appUrl: (process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 5000}`).replace(/\/$/, ""),
+  appUrl,
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
-  https: (process.env.APP_URL ?? "").startsWith("https://"),
+  https: appUrl.startsWith("https://"),
   adminEmails: (process.env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
 
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
