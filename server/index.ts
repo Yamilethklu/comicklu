@@ -8,7 +8,7 @@ import fs from "node:fs";
 import http from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { cloudStorageEnabled, signedObjectUrl } from "./cloud-storage";
+import { cloudStorageEnabled, signedObjectUrl, ensureCloudBucket } from "./cloud-storage";
 import { localPathFromUrl } from "./files";
 import { ZodError } from "zod";
 import { env } from "./env";
@@ -23,6 +23,7 @@ import { uploadRoot, ensureUploadDir } from "./files";
 
 export async function createApp() {
   await runMigrations();
+  await ensureCloudBucket();
   await ensureUploadDir();
   await failStaleRenders();
 

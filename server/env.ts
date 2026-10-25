@@ -31,6 +31,7 @@ export const env = {
   adminEmails: (process.env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
 
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripePortalConfigurationId: process.env.STRIPE_PORTAL_CONFIGURATION_ID ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   prices: {
     pro: { month: process.env.STRIPE_PRICE_PRO_MONTHLY ?? "", year: process.env.STRIPE_PRICE_PRO_YEARLY ?? "" },

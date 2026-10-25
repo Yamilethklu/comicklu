@@ -25,3 +25,13 @@ Configurar POLLINATIONS_API_KEY o los proveedores alternativos de .env.example y
 ## Límites y validación
 Render gratis puede suspenderse por inactividad; no es un servicio de disponibilidad garantizada. Un reinicio interrumpe videos en proceso. Supabase Free tiene cuotas: revisar almacenamiento y transferencia antes de abrir al público; no se prometen generación ni almacenamiento ilimitados. La aplicación limita cada archivo a 50 MB. Mantener una sola instancia por la cola de video local.
 La compilación y las pruebas simuladas no validan Stripe real, SMTP ni disponibilidad de IA externa. No declarar producción completa hasta probar credenciales reales y persistencia tras reinicio. Las apps iOS/Android necesitan publicación separada.
+
+## Recursos creados
+- Proyecto Supabase: arheillioispedrgfbwq (comicklu). Esquema inicial y sesiones creados; RLS habilitado y acceso de anon/authenticated revocado.
+- Render: yami / comicklu-1. Configuración de URLs, precios Stripe, portal y secreto del webhook cargada.
+- Stripe: tropicaña / Comicklu Pro y Comicklu Premium. USD: Pro 9.99 mensual o 99 anual; Premium 24.99 mensual o 249 anual. Webhook y portal creados.
+- Pendiente para arrancar: el titular debe configurar DATABASE_URL, SUPABASE_SECRET_KEY y STRIPE_SECRET_KEY en Render. La conexión no expone estas credenciales privadas; no se deben compartir en el chat. El bucket privado se prepara automáticamente al arrancar con las credenciales válidas.
+- DATABASE_URL: Supabase > Connect > Session Pooler, puerto 5432, usuario postgres.arheillioispedrgfbwq, contraseña de base de datos y sslmode=require.
+- SUPABASE_SECRET_KEY: Supabase > Settings > API Keys > Secret keys; solo servidor.
+- STRIPE_SECRET_KEY: cuenta tropicaña > Developers > API keys; preferir clave restringida con acceso necesario a clientes, Checkout, suscripciones, precios y sesiones de Customer Portal.
+- SMTP e IA con credenciales reales siguen pendientes. No se ha cobrado a clientes ni creado suscripciones de clientes ficticios.

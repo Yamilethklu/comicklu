@@ -52,6 +52,7 @@ billingRouter.post("/portal", requireAuth, async (req, res) => {
   const session = await getStripe().billingPortal.sessions.create({
     customer: user.stripeCustomerId,
     return_url: `${env.appUrl}/account`,
+    ...(env.stripePortalConfigurationId ? { configuration: env.stripePortalConfigurationId } : {}),
   });
   res.json({ url: session.url });
 });
