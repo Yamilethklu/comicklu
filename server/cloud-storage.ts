@@ -29,17 +29,21 @@ export async function removeObject(name: string) {
 
 export async function ensureCloudBucket() {
   if (!cloudStorageEnabled()) return;
-  const { error } = await bucket().list("", { limit: 1 });
-  if (!error) return;
-  // Creation is idempotent across startup retries; never make the bucket public.
+  bucket(); // initialize the server-only client
   const api = client!.storage;
+  const { data, error } = await api.getBucket(env.supabaseBucket);
+  if (data && !error) return;
+  if (error && ![400, 404].includes(Number(error.status))) {
+    throw new Error("No se pudo consultar el bucket privado de Supabase");
+  }
   const { error: creationError } = await api.createBucket(env.supabaseBucket, {
     public: false,
     fileSizeLimit: 50 * 1024 * 1024,
     allowedMimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp", "audio/mpeg", "audio/wav", "video/mp4"],
   });
   if (creationError) {
-    const { error: retryError } = await bucket().list("", { limit: 1 });
-    if (retryError) throw new Error("No se pudo preparar el bucket privado de Supabase");
+    // Another startup may have created it concurrently. Verify actual existence.
+    const { data: existing, error: retryError } = await api.getBucket(env.supabaseBucket);
+    if (!existing || retryError) throw new Error("No se pudo preparar el bucket privado de Supabase");
   }
 }

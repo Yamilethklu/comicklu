@@ -6,9 +6,24 @@ import path from "node:path";
 
 const objects = new Map<string, Buffer>();
 let failUpload = false;
+let bucketExists = false;
+let bucketCreates = 0;
 const mock = http.createServer(async (req, res) => {
   const url = new URL(req.url!, "http://localhost");
   const name = path.basename(url.pathname);
+  if (url.pathname === "/storage/v1/bucket/comicklu-media") {
+    res.setHeader("Content-Type", "application/json");
+    if (!bucketExists) { res.statusCode = 404; res.end('{"statusCode":"404","error":"not_found","message":"Bucket not found"}'); }
+    else res.end('{"id":"comicklu-media","name":"comicklu-media","public":false}');
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/storage/v1/bucket") {
+    let body = ""; for await (const chunk of req) body += chunk;
+    const config = JSON.parse(body);
+    assert.equal(config.public, false);
+    bucketExists = true; bucketCreates++;
+    res.setHeader("Content-Type", "application/json"); res.end('{"name":"comicklu-media"}'); return;
+  }
   if (req.method === "POST" && url.pathname.includes("/object/sign/")) {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ signedURL: `/object/sign/comicklu-media/${name}?token=mock` }));
@@ -32,6 +47,10 @@ const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "comicklu-storage-test
 process.env.UPLOAD_DIR = path.join(temporary, "cache");
 try {
   const { saveBuffer, materializeMedia, deleteMedia, localPathFromUrl } = await import("../server/files");
+  const { ensureCloudBucket } = await import("../server/cloud-storage");
+  await ensureCloudBucket();
+  await ensureCloudBucket();
+  assert.equal(bucketCreates, 1, "create missing bucket once, preserve existing bucket");
   const content = Buffer.from("persisted-image-test");
   const url = await saveBuffer(content, "png");
   assert.equal(objects.size, 1);
