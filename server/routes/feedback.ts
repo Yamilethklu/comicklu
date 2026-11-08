@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { db } from "../db";
@@ -43,7 +43,11 @@ adminRouter.use(requireAuth, requireOwner);
 adminRouter.get("/summary", async (_req, res) => {
   const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
   const [people, comicsTotal, pdfGross, latest, feedback] = await Promise.all([
-    db.select().from(users),
+    db.select({
+      id: users.id, plan: users.plan, subscriptionStatus: users.subscriptionStatus,
+      currentPeriodEnd: users.currentPeriodEnd, stripeCustomerId: users.stripeCustomerId,
+      createdAt: users.createdAt,
+    }).from(users),
     db.select({ n: sql<number>`count(*)::int` }).from(comics),
     db.select({ total: sql<number>`coalesce(sum(${pdfOrders.amountCents}),0)::int`, n: sql<number>`count(*)::int` }).from(pdfOrders),
     db.select({ id: users.id, email: users.email, name: users.name, plan: users.plan, status: users.subscriptionStatus, periodEnd: users.currentPeriodEnd, joined: users.createdAt })
@@ -56,11 +60,16 @@ adminRouter.get("/summary", async (_req, res) => {
   const prices = new Set([env.prices.pro.month, env.prices.pro.year, env.prices.premium.month, env.prices.premium.year].filter(Boolean));
   let paidInvoicesCents: number | null = null;
   let invoicePartial = false;
+  let invoicesRead = 0;
   if (stripeEnabled()) {
     try {
       let total = 0;
-      const invoices = await getStripe().invoices.list({ limit: 100, created: { gte: Math.floor(monthAgo.getTime() / 1000) } });
-      for (const invoice of invoices.data) {
+      const invoicePages = getStripe().invoices.list({
+        limit: 100, created: { gte: Math.floor(monthAgo.getTime() / 1000) },
+      }).autoPagingIterable();
+      for await (const invoice of invoicePages) {
+        invoicesRead++;
+        if (invoicesRead > 1000) { invoicePartial = true; break; }
         const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
         if (!customerId || !activeCustomers.has(customerId) || invoice.status !== "paid") continue;
         const invoiceLines = invoice.lines.data as unknown as Array<{ price?: { id?: string }, pricing?: { price_details?: { price?: string } } }>;
@@ -69,8 +78,9 @@ adminRouter.get("/summary", async (_req, res) => {
         }
       }
       paidInvoicesCents = total;
-      invoicePartial = invoices.has_more;
+
     } catch (error) {
+      paidInvoicesCents = null;
       console.warn("[admin] No se pudieron obtener ingresos de Stripe:", (error as Error).message);
     }
   }
