@@ -20,6 +20,7 @@ import { aiRouter } from "./routes/ai";
 import { billingRouter, stripeWebhook } from "./routes/billing";
 import { videoRouter, failStaleRenders, startRenderWorker } from "./routes/video";
 import { socialRouter } from "./routes/social";
+import { notificationsRouter, createNotification } from "./routes/notifications";
 import { creditsRouter } from "./routes/credits";
 import { uploadRoot, ensureUploadDir } from "./files";
 import { log, requestLogger } from "./logger";
@@ -171,6 +172,7 @@ export async function createApp() {
   app.use("/api/ai", aiRouter);
   app.use("/api/billing", billingRouter);
   app.use("/api/social", socialRouter);
+  app.use("/api/notifications", notificationsRouter);
   app.use("/api/billing/credits", creditsRouter);
   app.use("/api", videoRouter);
   app.use("/api", (_req, res) => res.status(404).json({ message: "Ruta no encontrada" }));

@@ -121,6 +121,48 @@ export const creditTransactions = pgTable("credit_transactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("credit_transactions_user_idx").on(t.userId)]);
 
+// Tokens de push para notificaciones móviles
+export const pushTokens = pgTable("push_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  platform: text("platform").notNull(), // ios | android | web
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("push_tokens_user_idx").on(t.userId)]);
+
+// Notificaciones del usuario
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // like | comment | follow | mention | system
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  data: jsonb("data").$type<Record<string, any>>().notNull().default({}),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)]);
+
+// Códigos promocionales y tarjetas de regalo
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code").notNull().unique(),
+  type: text("type").notNull(), // discount | credits | free_month
+  value: integer("value").notNull(), // porcentaje o monto o créditos
+  maxUses: integer("max_uses").notNull().default(1),
+  currentUses: integer("current_uses").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Uso de códigos promocionales por usuario
+export const promoCodeUses = pgTable("promo_code_uses", {
+  id: serial("id").primaryKey(),
+  promoCodeId: integer("promo_code_id").notNull().references(() => promoCodes.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  usedAt: timestamp("used_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("promo_code_uses_unique").on(t.promoCodeId, t.userId)]);
+
 // Códigos de referidos
 export const referrals = pgTable("referrals", {
   id: serial("id").primaryKey(),

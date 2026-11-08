@@ -6,6 +6,7 @@ import { users, comics, comicLikes, comicComments, userFollowers, referrals } fr
 import { requireAuth, publicUser } from "../auth";
 import { httpError } from "../ssrf";
 import { PLANS } from "@shared/plans";
+import { createNotification } from "./notifications";
 
 export const socialRouter = Router();
 socialRouter.use(requireAuth);
@@ -67,6 +68,9 @@ socialRouter.post("/comics/:id/like", async (req, res) => {
   } else {
     await db.insert(comicLikes).values({ comicId, userId: req.user!.id });
     res.json({ liked: true });
+    if (c.userId !== req.user!.id) {
+      await createNotification(c.userId, "like", "Nuevo like en tu cómic", `${req.user!.name} le dio like a "${c.title}"`, { comicId }).catch(() => {});
+    }
   }
 });
 
@@ -91,6 +95,9 @@ socialRouter.post("/comics/:id/comments", async (req, res) => {
   if (!c) throw httpError(404, "Cómic público no encontrado");
   const { content } = z.object({ content: z.string().trim().min(1).max(500) }).parse(req.body);
   const [cm] = await db.insert(comicComments).values({ comicId, userId: req.user!.id, content }).returning();
+  if (c.userId !== req.user!.id) {
+    await createNotification(c.userId, "comment", "Nuevo comentario en tu cómic", `${req.user!.name} comentó en "${c.title}"`, { comicId, commentId: cm.id }).catch(() => {});
+  }
   res.status(201).json(cm);
 });
 
@@ -130,6 +137,9 @@ socialRouter.post("/creador/:userId/follow", async (req, res) => {
   } else {
     await db.insert(userFollowers).values({ followerId: req.user!.id, followingId: userId });
     res.json({ following: true });
+    if (userId !== req.user!.id) {
+      await createNotification(userId, "follow", "Nuevo seguidor", `${req.user!.name} ahora te sigue en Panelforge`, { followingId: req.user!.id }).catch(() => {});
+    }
   }
 });
 
