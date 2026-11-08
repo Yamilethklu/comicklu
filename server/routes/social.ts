@@ -1,148 +1,193 @@
 import { Router } from "express";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, desc, eq, count, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { users, comics, panels, comicLikes, comicComments, follows, referrals } from "@shared/schema";
-import { requireAuth } from "../auth";
-import { comicCount, effectivePlan } from "../usage";
-import { PLANS } from "@shared/plans";
+import { users, comics, comicLikes, comicComments, userFollowers, referrals } from "@shared/schema";
+import { requireAuth, publicUser } from "../auth";
 import { httpError } from "../ssrf";
+import { PLANS } from "@shared/plans";
+import { createNotification } from "./notifications";
 
 export const socialRouter = Router();
-const idSchema = z.coerce.number().int().positive();
-const handle = (v: unknown) => idSchema.parse(v);
-const limit = (v: unknown) => Math.min(30, Math.max(1, Number(v) || 12));
-const userId = (v: unknown) => z.string().uuid().parse(v);
-
-async function publicComic(id: number) {
-  const [row] = await db.select().from(comics).where(and(eq(comics.id, id), eq(comics.isPublic, true)));
-  if (!row) throw httpError(404, "Cómic público no encontrado");
-  return row;
-}
-
-// Los listados públicos excluyen el texto completo de la historia y prompts privados.
-socialRouter.get("/explorar", async (req, res) => {
-  const query = z.string().max(120).catch("").parse(req.query.q);
-  const style = z.string().max(30).catch("").parse(req.query.style);
-  const page = Math.min(100, Math.max(1, Number(req.query.page) || 1));
-  const where = and(eq(comics.isPublic, true), query ? ilike(comics.title, `%${query}%`) : undefined, style ? eq(comics.style, style) : undefined);
-  const rows = await db.select({
-    id: comics.id, title: comics.title, synopsis: comics.synopsis, coverUrl: comics.coverUrl,
-    style: comics.style, publishedAt: comics.publishedAt,
-    creatorId: users.id, creatorName: users.name,
-    likes: sql<number>`(SELECT count(*)::int FROM comic_likes WHERE comic_id = ${comics.id})`,
-  }).from(comics).innerJoin(users, eq(comics.userId, users.id))
-    .where(where).orderBy(desc(comics.publishedAt), desc(comics.id)).limit(limit(req.query.limit)).offset((page - 1) * limit(req.query.limit));
-  res.json(rows);
-});
-
-socialRouter.get("/comics/:id", async (req, res) => {
-  const comic = await publicComic(handle(req.params.id));
-  const [owner] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, comic.userId));
-  const pics = await db.select({
-    position: panels.position, imageUrl: panels.imageUrl, caption: panels.caption, dialogue: panels.dialogue,
-  }).from(panels).where(eq(panels.comicId, comic.id)).orderBy(panels.position);
-  const [stats] = await db.select({ likes: sql<number>`count(*)::int` }).from(comicLikes).where(eq(comicLikes.comicId, comic.id));
-  res.json({
-    id: comic.id, title: comic.title, synopsis: comic.synopsis, coverUrl: comic.coverUrl,
-    style: comic.style, publishedAt: comic.publishedAt, creator: owner,
-    panels: pics, likes: stats?.likes ?? 0,
-  });
-});
-
-socialRouter.get("/creador/:userId", async (req, res) => {
-  const creatorId = userId(req.params.userId);
-  const [creator] = await db.select({ id: users.id, name: users.name, createdAt: users.createdAt })
-    .from(users).where(eq(users.id, creatorId));
-  if (!creator) throw httpError(404, "Creador no encontrado");
-  const published = await db.select({ id: comics.id, title: comics.title, synopsis: comics.synopsis, coverUrl: comics.coverUrl, style: comics.style, publishedAt: comics.publishedAt })
-    .from(comics).where(and(eq(comics.userId, creatorId), eq(comics.isPublic, true)))
-    .orderBy(desc(comics.publishedAt)).limit(40);
-  const [stats] = await db.select({ followers: sql<number>`count(*)::int` }).from(follows).where(eq(follows.followingId, creatorId));
-  res.json({ creator, comics: published, followers: stats?.followers ?? 0 });
-});
-
-socialRouter.get("/comics/:id/comments", async (req, res) => {
-  const id = handle(req.params.id);
-  await publicComic(id);
-  const rows = await db.select({ id: comicComments.id, text: comicComments.text, createdAt: comicComments.createdAt,
-    authorId: users.id, authorName: users.name })
-    .from(comicComments).innerJoin(users, eq(comicComments.userId, users.id))
-    .where(eq(comicComments.comicId, id)).orderBy(desc(comicComments.createdAt)).limit(100);
-  res.json(rows);
-});
-
 socialRouter.use(requireAuth);
 
+/** Listar cómics públicos (galería). Query: ?style=&search=&limit= */
+socialRouter.get("/comics/public", async (req, res) => {
+  const { search, style, limit = "20", offset = "0" } = z.object({
+    search: z.string().optional(),
+    style: z.string().optional(),
+    limit: z.string().default("20"),
+    offset: z.string().default("0"),
+  }).parse(req.query);
+
+  const conditions: any[] = [eq(comics.isPublic, true)];
+  if (search) conditions.push(or(ilike(comics.title, `%${search}%`), ilike(comics.synopsis, `%${search}%`)));
+  if (style) conditions.push(eq(comics.style, style));
+
+  const rows = await db.select({
+    id: comics.id, title: comics.title, synopsis: comics.synopsis, style: comics.style,
+    coverUrl: comics.coverUrl, createdAt: comics.createdAt, publishedAt: comics.publishedAt,
+    userId: comics.userId,
+  })
+    .from(comics)
+    .where(and(...conditions))
+    .orderBy(desc(comics.createdAt))
+    .limit(Number(limit))
+    .offset(Number(offset));
+
+  const enriched = await Promise.all(rows.map(async (c) => {
+    const [author] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, c.userId));
+    const [{ count: likeCount }] = await db.select({ count: count() }).from(comicLikes).where(eq(comicLikes.comicId, c.id));
+    const [myLike] = await db.select().from(comicLikes).where(and(eq(comicLikes.comicId, c.id), eq(comicLikes.userId, req.user!.id)));
+    return { ...c, author: { id: author!.id, name: author!.name }, likeCount: Number(likeCount), likedByMe: !!myLike };
+  }));
+  res.json(enriched);
+});
+
+/** Marcar/desmarcar un cómic como público (solo el autor). */
+socialRouter.post("/comics/:id/toggle-public", async (req, res) => {
+  const id = Number(req.params.id);
+  const [c] = await db.select().from(comics).where(and(eq(comics.id, id), eq(comics.userId, req.user!.id)));
+  if (!c) throw httpError(404, "Cómic no encontrado");
+  const updated = await db.update(comics).set({
+    isPublic: !c.isPublic,
+    publishedAt: !c.isPublic ? new Date() : c.publishedAt,
+  }).where(eq(comics.id, id)).returning();
+  res.json({ isPublic: updated[0].isPublic, publishedAt: updated[0].publishedAt });
+});
+
+/** Toggle like en un cómic público. */
 socialRouter.post("/comics/:id/like", async (req, res) => {
-  const id = handle(req.params.id);
-  await publicComic(id);
-  const removed = await db.delete(comicLikes)
-    .where(and(eq(comicLikes.comicId, id), eq(comicLikes.userId, req.user!.id))).returning();
-  if (removed.length) return res.json({ liked: false });
-  await db.insert(comicLikes).values({ comicId: id, userId: req.user!.id }).onConflictDoNothing();
-  res.json({ liked: true });
+  const comicId = Number(req.params.id);
+  const [c] = await db.select().from(comics).where(and(eq(comics.id, comicId), eq(comics.isPublic, true)));
+  if (!c) throw httpError(404, "Cómic público no encontrado");
+  const existing = await db.select().from(comicLikes).where(and(eq(comicLikes.comicId, comicId), eq(comicLikes.userId, req.user!.id)));
+  if (existing.length) {
+    await db.delete(comicLikes).where(and(eq(comicLikes.comicId, comicId), eq(comicLikes.userId, req.user!.id)));
+    res.json({ liked: false });
+  } else {
+    await db.insert(comicLikes).values({ comicId, userId: req.user!.id });
+    res.json({ liked: true });
+    if (c.userId !== req.user!.id) {
+      await createNotification(c.userId, "like", "Nuevo like en tu cómic", `${req.user!.name} le dio like a "${c.title}"`, { comicId }).catch(() => {});
+    }
+  }
 });
 
+/** Listar comentarios de un cómic público. */
+socialRouter.get("/comics/:id/comments", async (req, res) => {
+  const comicId = Number(req.params.id);
+  const rows = await db.select({
+    id: comicComments.id, content: comicComments.content, createdAt: comicComments.createdAt,
+    userId: comicComments.userId,
+  }).from(comicComments).where(eq(comicComments.comicId, comicId)).orderBy(desc(comicComments.createdAt));
+  const enriched = await Promise.all(rows.map(async (cm) => {
+    const [u] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, cm.userId));
+    return { ...cm, author: u ? { id: u.id, name: u.name } : null };
+  }));
+  res.json(enriched);
+});
+
+/** Agregar comentario a un cómic público. */
 socialRouter.post("/comics/:id/comments", async (req, res) => {
-  const id = handle(req.params.id);
-  await publicComic(id);
-  const { text } = z.object({ text: z.string().trim().min(1).max(1000) }).parse(req.body);
-  const [row] = await db.insert(comicComments).values({ comicId: id, userId: req.user!.id, text }).returning();
-  res.status(201).json({ id: row.id, text: row.text, createdAt: row.createdAt });
+  const comicId = Number(req.params.id);
+  const [c] = await db.select().from(comics).where(and(eq(comics.id, comicId), eq(comics.isPublic, true)));
+  if (!c) throw httpError(404, "Cómic público no encontrado");
+  const { content } = z.object({ content: z.string().trim().min(1).max(500) }).parse(req.body);
+  const [cm] = await db.insert(comicComments).values({ comicId, userId: req.user!.id, content }).returning();
+  if (c.userId !== req.user!.id) {
+    await createNotification(c.userId, "comment", "Nuevo comentario en tu cómic", `${req.user!.name} comentó en "${c.title}"`, { comicId, commentId: cm.id }).catch(() => {});
+  }
+  res.status(201).json(cm);
 });
 
-socialRouter.delete("/comments/:id", async (req, res) => {
-  const id = handle(req.params.id);
-  const removed = await db.delete(comicComments)
-    .where(and(eq(comicComments.id, id), eq(comicComments.userId, req.user!.id))).returning();
-  if (!removed.length) throw httpError(404, "Comentario no encontrado");
-  res.status(204).end();
-});
-
-socialRouter.post("/creador/:userId/follow", async (req, res) => {
-  const target = userId(req.params.userId);
-  if (target === req.user!.id) throw httpError(400, "No puedes seguirte a ti mismo");
-  const [exists] = await db.select({ id: users.id }).from(users).where(eq(users.id, target));
-  if (!exists) throw httpError(404, "Creador no encontrado");
-  const removed = await db.delete(follows).where(and(eq(follows.followerId, req.user!.id), eq(follows.followingId, target))).returning();
-  if (removed.length) return res.json({ following: false });
-  await db.insert(follows).values({ followerId: req.user!.id, followingId: target }).onConflictDoNothing();
-  res.json({ following: true });
-});
-
-socialRouter.post("/comics/:id/remix", async (req, res) => {
-  const original = await publicComic(handle(req.params.id));
-  const plan = PLANS[effectivePlan(req.user!)];
-  if ((await comicCount(req.user!.id)) >= plan.limits.comics) throw httpError(402, "Has alcanzado el límite de cómics de tu plan");
-  const sourcePanels = await db.select().from(panels).where(eq(panels.comicId, original.id)).orderBy(panels.position);
-  const take = sourcePanels.slice(0, plan.limits.panelsPerComic);
-  const result = await db.transaction(async tx => {
-    const [copy] = await tx.insert(comics).values({
-      userId: req.user!.id, title: `Remix: ${original.title}`.slice(0,120),
-      synopsis: original.synopsis, story: original.story, style: original.style,
-      settings: original.settings, coverUrl: original.coverUrl, isPublic: false,
-    }).returning();
-    if (take.length) await tx.insert(panels).values(take.map((p, position) => ({
-      comicId: copy.id, position, imageUrl: p.imageUrl, caption: p.caption, dialogue: p.dialogue,
-      prompt: p.prompt, voiceUrl: p.voiceUrl,
-    })));
-    return copy;
+/** Perfil público de creador. */
+socialRouter.get("/creador/:userId", async (req, res) => {
+  const { userId } = z.object({ userId: z.string() }).parse(req.params);
+  const [u] = await db.select().from(users).where(eq(users.id, userId));
+  if (!u) throw httpError(404, "Usuario no encontrado");
+  const rows = await db.select({
+    id: comics.id, title: comics.title, synopsis: comics.synopsis, style: comics.style,
+    coverUrl: comics.coverUrl, createdAt: comics.createdAt, publishedAt: comics.publishedAt,
+  }).from(comics).where(and(eq(comics.userId, userId), eq(comics.isPublic, true))).orderBy(desc(comics.publishedAt ?? comics.createdAt));
+  const [[{ count: followerCount }], [{ count: followingCount }]] = await Promise.all([
+    db.select({ count: count() }).from(userFollowers).where(eq(userFollowers.followingId, userId)),
+    db.select({ count: count() }).from(userFollowers).where(eq(userFollowers.followerId, userId)),
+  ]);
+  const [myFollow] = await db.select().from(userFollowers).where(and(eq(userFollowers.followingId, userId), eq(userFollowers.followerId, req.user!.id)));
+  res.json({
+    author: { id: u.id, name: u.name, email: u.email },
+    comics: rows,
+    followerCount: Number(followerCount),
+    followingCount: Number(followingCount),
+    followingByMe: !!myFollow,
   });
-  res.status(201).json({ id: result.id });
 });
 
-// Referidos no otorgan recompensas automáticamente: se evita abuso financiero.
-socialRouter.get("/referrals/me", async (req, res) => {
-  const [count] = await db.select({ total: sql<number>`count(*)::int` }).from(referrals).where(eq(referrals.referrerId, req.user!.id));
-  res.json({ code: req.user!.id, total: count?.total ?? 0 });
+/** Seguir / dejar de seguir a un creador. */
+socialRouter.post("/creador/:userId/follow", async (req, res) => {
+  const { userId } = z.object({ userId: z.string() }).parse(req.params);
+  if (userId === req.user!.id) throw httpError(400, "No puedes seguirte a ti mismo");
+  const [u] = await db.select().from(users).where(eq(users.id, userId));
+  if (!u) throw httpError(404, "Usuario no encontrado");
+  const existing = await db.select().from(userFollowers).where(and(eq(userFollowers.followingId, userId), eq(userFollowers.followerId, req.user!.id)));
+  if (existing.length) {
+    await db.delete(userFollowers).where(and(eq(userFollowers.followingId, userId), eq(userFollowers.followerId, req.user!.id)));
+    res.json({ following: false });
+  } else {
+    await db.insert(userFollowers).values({ followerId: req.user!.id, followingId: userId });
+    res.json({ following: true });
+    if (userId !== req.user!.id) {
+      await createNotification(userId, "follow", "Nuevo seguidor", `${req.user!.name} ahora te sigue en Panelforge`, { followingId: req.user!.id }).catch(() => {});
+    }
+  }
 });
+
+/** Remix (fork) de un cómic público a tu propia biblioteca. */
+socialRouter.post("/comics/:id/remix", async (req, res) => {
+  const comicId = Number(req.params.id);
+  const [c] = await db.select().from(comics).where(and(eq(comics.id, comicId), eq(comics.isPublic, true)));
+  if (!c) throw httpError(404, "Cómic público no encontrado");
+  const currentCount = await db.select({ n: count() }).from(comics).where(eq(comics.userId, req.user!.id));
+  if (Number((currentCount[0] as any).n) >= PLANS.free.limits.comics) {
+    return res.status(402).json({ message: "Límite de cómics alcanzado para tu plan." });
+  }
+  const { panels } = await import("@shared/schema");
+  const panelRows = await db.select().from(panels).where(eq(panels.comicId, comicId)).orderBy(asc(panels.position));
+  const [nuevo] = await db.insert(comics).values({
+    userId: req.user!.id,
+    title: `Remix de ${c.title}`,
+    synopsis: c.synopsis,
+    story: c.story,
+    style: c.style,
+    settings: c.settings,
+    coverUrl: c.coverUrl,
+    isPublic: false,
+  }).returning();
+  if (panelRows.length) {
+    await db.insert(panels).values(panelRows.map((p, i) => ({
+      comicId: nuevo.id, position: i, imageUrl: p.imageUrl, caption: p.caption,
+      dialogue: p.dialogue, prompt: p.prompt, voiceUrl: p.voiceUrl,
+    })));
+  }
+  res.status(201).json({ id: nuevo.id });
+});
+
+/** Obtener código de referido del usuario (crear si no existe). */
+socialRouter.get("/referrals/me", async (req, res) => {
+  let [r] = await db.select().from(referrals).where(eq(referrals.ownerId, req.user!.id));
+  if (!r) {
+    const code = `PF-${req.user!.id.slice(0, 6)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    [r] = await db.insert(referrals).values({ code, ownerId: req.user!.id }).returning();
+  }
+  res.json({ code: r.code });
+});
+
+/** Canjear un código de referido (valida que exista y no sea propio). */
 socialRouter.post("/referrals/claim", async (req, res) => {
-  const { code } = z.object({ code: z.string().uuid() }).parse(req.body);
-  if (code === req.user!.id) throw httpError(400, "No puedes referirte a ti mismo");
-  const [referrer] = await db.select({ id: users.id }).from(users).where(eq(users.id, code));
-  if (!referrer) throw httpError(404, "Código de referido no válido");
-  const [row] = await db.insert(referrals).values({ referrerId: code, referredId: req.user!.id }).onConflictDoNothing().returning();
-  if (!row) throw httpError(409, "Ya has reclamado un código de referido");
-  res.status(201).json({ ok: true });
+  const { code } = z.object({ code: z.string().min(3) }).parse(req.body);
+  const [r] = await db.select().from(referrals).where(eq(referrals.code, code.toUpperCase()));
+  if (!r) throw httpError(404, "Código de referido no válido");
+  if (r.ownerId === req.user!.id) throw httpError(400, "No puedes usar tu propio código");
+  res.json({ valid: true, ownerId: r.ownerId });
 });
