@@ -14,7 +14,8 @@
     "mobile:sync": "npm run build:mobile && cap sync",
     "mobile:android": "npm run mobile:sync && cap open android",
     "mobile:ios": "npm run mobile:sync && cap open ios",
-    "test:storage": "node --import tsx scripts/storage-test.ts"
+    "test:storage": "node --import tsx scripts/storage-test.ts",
+    "build:vercel": "vite build"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",
