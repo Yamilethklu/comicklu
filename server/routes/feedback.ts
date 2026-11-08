@@ -66,7 +66,7 @@ adminRouter.get("/summary", async (_req, res) => {
       let total = 0;
       const invoicePages = getStripe().invoices.list({
         limit: 100, created: { gte: Math.floor(monthAgo.getTime() / 1000) },
-      }).autoPagingIterable();
+      });
       for await (const invoice of invoicePages) {
         invoicesRead++;
         if (invoicesRead > 1000) { invoicePartial = true; break; }
