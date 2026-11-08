@@ -34,8 +34,13 @@ export default function Dashboard() {
     <Page>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="title-comic text-5xl">Mi biblioteca</h1>
-          <p className="mt-2 text-sm text-ink/70">Hola, {user?.name.split(" ")[0]} 👋</p>
+          <h1 className="title-comic text-5xl">Mi estudio privado</h1>
+          <p className="mt-2 text-sm text-ink/70">Hola, {user?.name.split(" ")[0]} 👋 Tus historias están guardadas en tu espacio personal.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
+            <span className="rounded-md border-2 border-ink bg-mint/30 px-2 py-1">Espacio privado</span>
+            <Link href="/account" className="rounded-md border-2 border-ink bg-white px-2 py-1 hover:bg-sun">Mi plan y consumo</Link>
+            <Link href="/precios" className="rounded-md border-2 border-ink bg-sun px-2 py-1 hover:bg-pop/30">Ver suscripciones</Link>
+          </div>
           {me?.limits && (
             <div className="mt-2 w-64" role="group" aria-label="Cómics usados en tu plan">
               <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-white">
@@ -54,9 +59,10 @@ export default function Dashboard() {
         {limitHit && <Link href="/precios" className="btn-sun">Ver planes</Link>}
       </div>
 
+      {list.isError && <div className="frame mt-6 p-5" role="alert"><p className="font-bold">No pudimos cargar tus cómics.</p><p className="mt-1 text-sm">{errMsg(list.error)}</p><button className="btn-sun mt-3" onClick={() => list.refetch()}>Reintentar</button></div>}
       {list.isLoading ? (
         <div className="mt-10 grid place-items-center"><Loader2 className="h-7 w-7 animate-spin" aria-label="Cargando" /></div>
-      ) : rows.length === 0 ? (
+      ) : list.isError ? null : rows.length === 0 ? (
         <div className="frame halftone-soft mt-8 border-dashed p-12 text-center">
           <div className="mx-auto grid h-16 w-16 -rotate-6 place-items-center rounded-xl border-[3px] border-ink bg-sun font-display text-4xl shadow-hard">+</div>
           <p className="mt-4 font-display text-4xl tracking-wide">Tu primera página está en blanco</p>

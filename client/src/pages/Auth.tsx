@@ -15,6 +15,7 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isReg && password !== confirmPassword) { setError("Las contraseñas no coinciden."); return; }
     setBusy(true); setError(null);
     try {
       await api("POST", isReg ? "/api/auth/register" : "/api/auth/login", isReg ? { name, email, password } : { email, password });
@@ -55,8 +57,13 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
               <label className="label" htmlFor="password">Contraseña</label>
               <input id="password" type="password" className="field" value={password} onChange={(e) => setPassword(e.target.value)}
                 autoComplete={isReg ? "new-password" : "current-password"} minLength={isReg ? 8 : 1} required />
-              {isReg && <p className="mt-1 text-xs text-ink/60">Mínimo 8 caracteres.</p>}
+              {isReg && <p className="mt-1 text-xs text-ink/60">Mínimo 8 caracteres. No compartas tu contraseña.</p>}
             </div>
+            {isReg && <div>
+              <label className="label" htmlFor="confirm-password">Confirmar contraseña</label>
+              <input id="confirm-password" type="password" className="field" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
+            </div>}
+            {isReg && <p className="rounded-lg border-2 border-ink/15 bg-mint/15 p-3 text-xs text-ink/80">Tu estudio será privado: solo tú podrás acceder a tus cómics con tu cuenta. Empiezas gratis y puedes elegir Pro o Premium cuando quieras.</p>}
             {!isReg && cfg?.mail && <p className="text-sm"><Link href="/olvide" className="font-bold underline decoration-pop decoration-2 underline-offset-2">¿Olvidaste tu contraseña?</Link></p>}
             <ErrorNote message={error} />
             <button className="btn-pop btn-shine w-full" disabled={busy}>

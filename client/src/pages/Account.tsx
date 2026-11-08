@@ -66,10 +66,14 @@ export default function Account() {
       <h1 className="font-display text-5xl tracking-wide">Mi cuenta</h1>
       {welcome && (
         <p className="mt-4 rounded-lg border-2 border-ink bg-mint/40 px-3 py-2 text-sm font-semibold" role="status">
-          ¡Pago recibido! Estamos activando tu plan{me.effectivePlan === "free" ? "; si no cambia en un minuto, recarga la página." : "."}
+          Has vuelto de Stripe. Estamos verificando el pago y la activación de tu plan{me.effectivePlan === "free" ? "; si no cambia, pulsa Actualizar." : "."}
           <button className="ml-2 underline" onClick={() => refetch()}>Actualizar</button>
         </p>
       )}
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link href="/dashboard" className="btn-sun">Ir a mi estudio privado</Link>
+        <Link href="/precios" className="btn-ghost">Comparar planes</Link>
+      </div>
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         <section className="frame p-6" aria-labelledby="perfil">
           <h2 id="perfil" className="text-xl font-extrabold">Perfil</h2>
