@@ -1,10 +1,10 @@
 import "dotenv/config";
 
 const isProd = process.env.NODE_ENV === "production";
-// Render supplies this URL after assigning the public hostname.
+// Un único origen Vercel para API, sesiones y redirecciones de Stripe.
 const appUrl = (process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${process.env.PORT ?? 5000}`)).replace(/\/$/, "");
 if (isProd && new URL(appUrl).protocol !== "https:") {
-  throw new Error("Configura APP_URL con https o despliega con RENDER_EXTERNAL_URL.");
+  throw new Error("Configura APP_URL con https para Vercel.");
 }
 
 function need(name: string, fallbackDev?: string): string {
@@ -20,7 +20,8 @@ if (Boolean(process.env.SUPABASE_URL) !== Boolean(process.env.SUPABASE_SECRET_KE
 export const env = {
   isProd,
   port: Number(process.env.PORT ?? 5000),
-  databaseUrl: need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
+  // Supabase/Vercel puede proveer POSTGRES_URL en lugar de DATABASE_URL.
+  databaseUrl: process.env.DATABASE_URL || process.env.POSTGRES_URL || need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
   sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
   appUrl,
   // Vercel es el único origen: pagos y correos vuelven a este mismo dominio.
