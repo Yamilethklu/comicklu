@@ -21,7 +21,12 @@ async function recordPdfPayment(s: Stripe.Checkout.Session): Promise<void> {
   const [comic] = await db.select({ id: comics.id }).from(comics)
     .where(and(eq(comics.id, comicId), eq(comics.userId, userId)));
   if (!comic) return;
-  if (!s.amount_total || !Number.isSafeInteger(s.amount_total) || s.amount_total < 50) return;
+  const expected = Number(s.metadata.priceCents);
+  const customerId = typeof s.customer === "string" ? s.customer : s.customer?.id;
+  const [owner] = await db.select({ stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, userId));
+  if (!owner?.stripeCustomerId || customerId !== owner.stripeCustomerId) return;
+  if (s.currency?.toLowerCase() !== "usd" || !Number.isSafeInteger(expected) || expected < 50 ||
+      s.amount_total !== expected || s.amount_subtotal !== expected) return;
   await db.insert(pdfOrders).values({
     userId, comicId, stripeSessionId: s.id, amountCents: s.amount_total,
   }).onConflictDoNothing();
@@ -56,7 +61,7 @@ billingRouter.post("/pdf/checkout", requireAuth, async (req, res) => {
       product_data: { name: "Descarga PDF de historieta", description: comic.title.slice(0, 120) } }, quantity: 1 }],
     success_url: `${env.siteUrl}/studio/${comicId}?pdf_checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${env.siteUrl}/studio/${comicId}?pdf_checkout=cancelled`,
-    metadata: { kind: "comic_pdf", userId: req.user!.id, comicId: String(comicId) },
+    metadata: { kind: "comic_pdf", userId: req.user!.id, comicId: String(comicId), priceCents: String(price) },
   });
   res.json({ url: checkout.url, paid: false });
 });
