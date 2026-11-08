@@ -4,7 +4,7 @@ ALTER TABLE "comic_likes" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE "comic_comments" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
-ALTER TABLE "follows" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "user_followers" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE "referrals" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
