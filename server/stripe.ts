@@ -51,7 +51,9 @@ export async function applySubscription(sub: Stripe.Subscription): Promise<void>
   }
 
   const item = sub.items.data[0];
-  const plan = planFromPriceId(item?.price?.id) ?? (sub.metadata?.plan as PlanId | undefined) ?? null;
+  // El precio contratado determina el plan. Nunca usar metadata como autorización de beneficios.
+  const plan = planFromPriceId(item?.price?.id);
+  if (!plan && ACTIVE.has(sub.status)) console.error(`[stripe] precio no autorizado en suscripción ${sub.id}; se mantiene plan Gratis`);
   const live = ACTIVE.has(sub.status);
   const periodEnd = item?.current_period_end ? new Date(item.current_period_end * 1000) : null;
 

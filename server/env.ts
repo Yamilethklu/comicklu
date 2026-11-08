@@ -23,6 +23,8 @@ export const env = {
   databaseUrl: need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
   sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
   appUrl,
+  // URL pública del frontend (Vercel) cuando la API permanece en Render.
+  siteUrl: (process.env.PUBLIC_SITE_URL || appUrl).replace(/\/$/, ""),
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
@@ -71,6 +73,8 @@ export const env = {
 };
 
 export const stripeEnabled = () => !!env.stripeSecretKey;
+// No ofrecer Checkout mientras falten precios mínimos o el secreto de webhook.
+export const checkoutEnabled = () => stripeEnabled() && !!env.stripeWebhookSecret && !!env.prices.pro.month && !!env.prices.premium.month;
 export const aiEnabled = () => {
   if (env.aiProvider === "off") return false;
   if (env.aiProvider === "openai") return !!env.openaiKey;

@@ -5,7 +5,7 @@ import type Stripe from "stripe";
 import { db } from "../db";
 import { users, stripeEvents } from "@shared/schema";
 import { requireAuth, publicUser } from "../auth";
-import { env, stripeEnabled } from "../env";
+import { env, stripeEnabled, checkoutEnabled } from "../env";
 import { getStripe, priceFor, ensureCustomer, applySubscription, syncCustomer } from "../stripe";
 import { refreshUser } from "../usage";
 
@@ -18,7 +18,7 @@ const checkoutBody = z.object({
 
 billingRouter.post("/checkout", requireAuth, async (req, res) => {
   const body = checkoutBody.parse(req.body);
-  if (!stripeEnabled()) return res.status(503).json({ message: "Los pagos aún no están configurados. Contacta al administrador." });
+  if (!checkoutEnabled()) return res.status(503).json({ message: "No se pueden iniciar suscripciones hasta que Stripe y el webhook estén configurados correctamente." });
   const user = req.user!;
 
   const live = user.subscriptionStatus && ["active", "trialing", "past_due"].includes(user.subscriptionStatus);
@@ -30,6 +30,11 @@ billingRouter.post("/checkout", requireAuth, async (req, res) => {
   if (!price) return res.status(503).json({ message: `Falta configurar el precio de ${body.plan} (${body.interval}) en el servidor.` });
 
   const customer = await ensureCustomer(user);
+  // Verifica también en Stripe para impedir un segundo Checkout si el webhook va retrasado.
+  const existing = await getStripe().subscriptions.list({ customer, status: "all", limit: 50 });
+  if (existing.data.some((s) => ["active", "trialing", "past_due", "incomplete", "paused"].includes(s.status))) {
+    return res.status(409).json({ message: "Ya tienes una suscripción o un pago pendiente. Revísalo desde «Mi cuenta».", usePortal: true });
+  }
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
     customer,
@@ -37,8 +42,8 @@ billingRouter.post("/checkout", requireAuth, async (req, res) => {
     line_items: [{ price, quantity: 1 }],
     allow_promotion_codes: true,
     billing_address_collection: "auto",
-    success_url: `${env.appUrl}/account?checkout=success`,
-    cancel_url: `${env.appUrl}/precios?checkout=cancelled`,
+    success_url: `${env.siteUrl}/account?checkout=success`,
+    cancel_url: `${env.siteUrl}/precios?checkout=cancelled`,
     subscription_data: { metadata: { userId: user.id, plan: body.plan } },
     metadata: { userId: user.id, plan: body.plan },
   });
@@ -51,7 +56,7 @@ billingRouter.post("/portal", requireAuth, async (req, res) => {
   if (!user.stripeCustomerId) return res.status(400).json({ message: "Todavía no tienes una suscripción que administrar." });
   const session = await getStripe().billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${env.appUrl}/account`,
+    return_url: `${env.siteUrl}/account`,
     ...(env.stripePortalConfigurationId ? { configuration: env.stripePortalConfigurationId } : {}),
   });
   res.json({ url: session.url });
@@ -94,7 +99,13 @@ export async function stripeWebhook(req: Request, res: Response) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":
-        await applySubscription(event.data.object as Stripe.Subscription);
+        // Stripe entrega webhooks fuera de orden. Consultar su estado actual evita
+        // que un evento antiguo restaure un plan cancelado o reemplace un cambio reciente.
+        {
+          const sub = event.data.object as Stripe.Subscription;
+          const latest = await getStripe().subscriptions.retrieve(sub.id);
+          await applySubscription(latest);
+        }
         break;
       case "invoice.payment_failed": {
         const inv = event.data.object as Stripe.Invoice;

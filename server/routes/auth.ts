@@ -7,7 +7,7 @@ import signature from "cookie-signature";
 import { db, pool } from "../db";
 import { users, assets, passwordResets } from "@shared/schema";
 import { hashPassword, verifyPassword, publicUser, requireAuth } from "../auth";
-import { env, stripeEnabled, aiEnabled, mailEnabled } from "../env";
+import { env, stripeEnabled, checkoutEnabled, aiEnabled, mailEnabled } from "../env";
 import { sendMail } from "../mail";
 import { getStripe } from "../stripe";
 import { deleteMedia } from "../files";
@@ -171,7 +171,7 @@ export const configRouter = Router();
 configRouter.get("/", (_req, res) => {
   res.json({
     plans: PLANS,
-    stripe: stripeEnabled(),
+    stripe: checkoutEnabled(),
     ai: aiEnabled(),
     mail: mailEnabled(),
     yearly: {
