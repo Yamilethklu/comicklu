@@ -6,12 +6,12 @@ import { useMe } from "@/lib/hooks";
 import Landing from "@/pages/Landing";
 import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Studio from "@/pages/Studio";
+const Studio = lazy(() => import("@/pages/Studio"));
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
 import { ForgotPassword, ResetPassword } from "@/pages/Recover";
 import NotFound from "@/pages/NotFound";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
 function Protected({ children }: { children: ReactNode }) {
   const { user, loading } = useMe();
@@ -23,6 +23,7 @@ function Protected({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <Router hook={isNative ? useHashLocation : undefined}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center"><Loader2 className="h-8 w-8 animate-spin" aria-label="Cargando" /></div>}>
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/login"><AuthPage mode="login" /></Route>
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/studio/:id">{(p) => <Protected><Studio id={Number(p.id)} /></Protected>}</Route>
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
     </Router>
   );
 }

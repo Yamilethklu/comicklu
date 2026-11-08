@@ -33,7 +33,11 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
   return (
     <Page>
       <div className="mx-auto max-w-md">
-        <div className="frame p-6 shadow-hard">
+        <div className="frame relative overflow-hidden shadow-hard-lg">
+          <div className="halftone flex h-16 items-center justify-center border-b-[3px] border-ink bg-gradient-to-r from-sun via-pop to-zap" aria-hidden>
+            <span className="rotate-[-3deg] rounded-md border-[3px] border-ink bg-white px-3 py-0.5 font-display text-2xl shadow-hard-sm">{isReg ? "¡Bienvenid@!" : "¡Hola de nuevo!"}</span>
+          </div>
+          <div className="p-6">
           <h1 className="font-display text-4xl tracking-wide">{isReg ? "Crea tu cuenta" : "Entra a tu estudio"}</h1>
           <p className="mt-1 text-sm text-ink/70">{isReg ? "Empiezas en el plan Gratis, sin tarjeta." : "Tus cómics te están esperando."}</p>
           <form onSubmit={submit} className="mt-5 space-y-4">
@@ -55,7 +59,7 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
             </div>
             {!isReg && cfg?.mail && <p className="text-sm"><Link href="/olvide" className="font-bold underline decoration-pop decoration-2 underline-offset-2">¿Olvidaste tu contraseña?</Link></p>}
             <ErrorNote message={error} />
-            <button className="btn-pop w-full" disabled={busy}>
+            <button className="btn-pop btn-shine w-full" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}{isReg ? "Crear cuenta" : "Entrar"}
             </button>
           </form>
@@ -65,6 +69,7 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
               {isReg ? "Entrar" : "Crear una"}
             </Link>
           </p>
+          </div>
         </div>
       </div>
     </Page>

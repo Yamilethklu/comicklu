@@ -3,30 +3,74 @@
 @tailwind utilities;
 
 :root { color-scheme: light; }
-html, body { background: #eef1f8; color: #16132b; }
-body { font-family: Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+html { scroll-behavior: smooth; }
+html, body { background-color: #eef1f8; color: #16132b; }
+body {
+  font-family: Figtree, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* Fondo de página de cómic: puntos de trama + manchas de color muy suaves */
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(255, 61, 129, .14), transparent 32%),
+    radial-gradient(circle at 94% 12%, rgba(23, 195, 230, .16), transparent 30%),
+    radial-gradient(circle at 80% 96%, rgba(255, 210, 63, .20), transparent 34%),
+    radial-gradient(rgba(22, 19, 43, .07) 1.2px, transparent 1.4px);
+  background-size: auto, auto, auto, 14px 14px;
+  background-attachment: fixed;
+}
+::selection { background: #ffd23f; color: #16132b; }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-ink px-4 py-2 text-sm font-bold
-      transition active:translate-x-[2px] active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-50
+    @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-ink px-4 py-2 text-sm font-bold
+      transition duration-150 hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0
       focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zap;
   }
-  .btn-pop { @apply btn bg-pop text-white shadow-hard active:shadow-hard-sm; }
-  .btn-sun { @apply btn bg-sun text-ink shadow-hard active:shadow-hard-sm; }
-  .btn-ghost { @apply btn bg-white text-ink hover:bg-ink/5; }
+  .btn-pop { @apply btn bg-pop text-white shadow-hard hover:shadow-hard-lg active:shadow-hard-sm; }
+  .btn-sun { @apply btn bg-sun text-ink shadow-hard hover:shadow-hard-lg active:shadow-hard-sm; }
+  .btn-ghost { @apply btn bg-white text-ink hover:bg-sun/40; }
+  /* Destello que cruza el botón principal al pasar el cursor */
+  .btn-shine::after {
+    content: ""; position: absolute; inset-block: 0; left: 0; width: 28%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+    transform: translateX(-120%) skewX(-20deg); pointer-events: none;
+  }
+  .btn-shine:hover::after { animation: shine .8s ease; }
   .field {
-    @apply w-full rounded-lg border-2 border-ink bg-white px-3 py-2 text-sm placeholder:text-ink/40
-      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zap;
+    @apply w-full rounded-lg border-2 border-ink bg-white px-3 py-2 text-sm transition placeholder:text-ink/40
+      focus-visible:border-pop focus-visible:shadow-hard-sm focus-visible:outline-none;
   }
   .label { @apply mb-1 block text-sm font-bold; }
   .frame { @apply rounded-xl border-[3px] border-ink bg-white; }
+  .frame-hover { @apply transition duration-200 hover:-translate-y-1 hover:-rotate-[0.6deg] hover:shadow-hard-lg; }
   .halftone {
     background-image: radial-gradient(#16132b 1.2px, transparent 1.4px);
     background-size: 9px 9px;
   }
+  /* Título con relieve de cómic */
+  .title-comic { @apply font-display tracking-wide; text-shadow: 3px 3px 0 #ffd23f, 5px 5px 0 #16132b; }
+  .hl { background-image: linear-gradient(transparent 58%, #ffd23f 58%, #ffd23f 92%, transparent 92%); }
+  /* Globo de diálogo con colita */
+  .bubble { @apply relative rounded-[1.4rem] border-[3px] border-ink bg-white; }
+  .bubble::after {
+    content: ""; position: absolute; bottom: -12px; left: 24px; width: 18px; height: 18px;
+    background: #fff; border-right: 3px solid #16132b; border-bottom: 3px solid #16132b;
+    transform: rotate(45deg);
+  }
+  .bubble-r::after { left: auto; right: 24px; }
+  /* Estallido tipo ¡POW! */
+  .burst {
+    clip-path: polygon(50% 0%, 61% 14%, 79% 6%, 80% 24%, 98% 28%, 88% 44%, 100% 58%, 83% 66%, 86% 85%, 67% 82%, 58% 100%, 46% 85%, 28% 96%, 25% 77%, 6% 76%, 15% 58%, 0% 44%, 17% 34%, 14% 15%, 33% 19%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   * { animation: none !important; transition: none !important; }
+}
+
+@layer components {
+  .halftone-soft {
+    background-image: radial-gradient(rgba(22,19,43,.10) 1.2px, transparent 1.4px);
+    background-size: 10px 10px;
+  }
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Pencil } from "lucide-react";
 import { api, errMsg, ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/native";
 import { useMe } from "@/lib/hooks";
@@ -34,12 +34,18 @@ export default function Dashboard() {
     <Page>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-5xl tracking-wide">Mi biblioteca</h1>
-          <p className="mt-1 text-sm text-ink/70">
-            Hola, {user?.name.split(" ")[0]}. {me?.limits && `${me.comics ?? 0} de ${me.limits.comics} cómics usados en tu plan.`}
-          </p>
+          <h1 className="title-comic text-5xl">Mi biblioteca</h1>
+          <p className="mt-2 text-sm text-ink/70">Hola, {user?.name.split(" ")[0]} 👋</p>
+          {me?.limits && (
+            <div className="mt-2 w-64" role="group" aria-label="Cómics usados en tu plan">
+              <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-white">
+                <div className={`h-full ${(me.comics ?? 0) >= me.limits.comics ? "bg-pop" : "bg-mint"}`} style={{ width: `${Math.min(100, ((me.comics ?? 0) / me.limits.comics) * 100)}%` }} />
+              </div>
+              <p className="mt-1 text-xs font-semibold text-ink/70">{me.comics ?? 0} de {me.limits.comics} cómics en tu plan</p>
+            </div>
+          )}
         </div>
-        <button className="btn-pop" onClick={() => { setError(null); create.mutate(); }} disabled={create.isPending}>
+        <button className="btn-pop btn-shine" onClick={() => { setError(null); create.mutate(); }} disabled={create.isPending}>
           {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Nuevo cómic
         </button>
       </div>
@@ -51,18 +57,21 @@ export default function Dashboard() {
       {list.isLoading ? (
         <div className="mt-10 grid place-items-center"><Loader2 className="h-7 w-7 animate-spin" aria-label="Cargando" /></div>
       ) : rows.length === 0 ? (
-        <div className="frame mt-8 p-10 text-center">
-          <p className="font-display text-4xl tracking-wide">Tu primera página está en blanco</p>
+        <div className="frame halftone-soft mt-8 border-dashed p-12 text-center">
+          <div className="mx-auto grid h-16 w-16 -rotate-6 place-items-center rounded-xl border-[3px] border-ink bg-sun font-display text-4xl shadow-hard">+</div>
+          <p className="mt-4 font-display text-4xl tracking-wide">Tu primera página está en blanco</p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-ink/70">Crea un cómic, escribe la historia y empieza a llenar viñetas.</p>
           <button className="btn-pop mt-5" onClick={() => create.mutate()}>Crear mi primer cómic</button>
         </div>
       ) : (
         <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((c) => (
-            <li key={c.id} className="frame overflow-hidden shadow-hard">
+            <li key={c.id} className="frame frame-hover group overflow-hidden shadow-hard">
               <Link href={`/studio/${c.id}`} className="block">
-                <div className="halftone grid aspect-video place-items-center border-b-[3px] border-ink bg-sun/60">
-                  {c.coverUrl ? <img src={mediaUrl(c.coverUrl)} alt="" className="h-full w-full object-cover" /> : <span className="font-display text-3xl">{STYLES[c.style]?.name ?? "Cómic"}</span>}
+                <div className="halftone relative grid aspect-video place-items-center overflow-hidden border-b-[3px] border-ink bg-sun/60">
+                  {c.coverUrl ? <img src={mediaUrl(c.coverUrl)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <span className="font-display text-3xl">{STYLES[c.style]?.name ?? "Cómic"}</span>}
+                  <span className="absolute right-2 top-2 rounded-md border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-extrabold">{STYLES[c.style]?.name}</span>
+                  <span className="absolute bottom-2 right-2 hidden items-center gap-1 rounded-md border-2 border-ink bg-pop px-2 py-1 text-xs font-extrabold text-white group-hover:flex"><Pencil className="h-3 w-3" aria-hidden />Abrir</span>
                 </div>
                 <div className="p-4">
                   <h2 className="line-clamp-1 text-lg font-extrabold">{c.title}</h2>

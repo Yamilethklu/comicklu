@@ -53,7 +53,11 @@ async function withPanels(c: typeof comics.$inferSelect) {
 }
 
 comicsRouter.get("/", async (req, res) => {
-  const rows = await db.select().from(comics).where(eq(comics.userId, req.user!.id)).orderBy(desc(comics.updatedAt));
+  // Solo las columnas que usa la biblioteca: evita enviar `story` (hasta 20 000 caracteres) de cada cómic.
+  const rows = await db.select({
+    id: comics.id, title: comics.title, synopsis: comics.synopsis, style: comics.style,
+    coverUrl: comics.coverUrl, updatedAt: comics.updatedAt,
+  }).from(comics).where(eq(comics.userId, req.user!.id)).orderBy(desc(comics.updatedAt));
   res.json(rows);
 });
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Clapperboard, Download, Eye, Film, Layers, Loader2, Palette, Plus, Sparkles, type LucideIcon } from "lucide-react";
 import { api, errMsg, ApiError } from "@/lib/api";
 import { isNative, mediaUrl, openExternal } from "@/lib/native";
 import { Share } from "@capacitor/share";
@@ -14,9 +14,9 @@ import { STYLES, METRIC_LABEL, type StyleId, type Metric } from "@shared/plans";
 
 type StudioComic = Omit<ComicData, "panels"> & { panels: ClientPanel[] };
 type Tab = "historia" | "vinetas" | "estilo" | "vista" | "exportar";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "historia", label: "Historia" }, { id: "vinetas", label: "Viñetas" }, { id: "estilo", label: "Estilo" },
-  { id: "vista", label: "Vista previa" }, { id: "exportar", label: "Exportar" },
+const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
+  { id: "historia", label: "Historia", icon: BookOpen }, { id: "vinetas", label: "Viñetas", icon: Layers }, { id: "estilo", label: "Estilo", icon: Palette },
+  { id: "vista", label: "Vista previa", icon: Eye }, { id: "exportar", label: "Exportar", icon: Clapperboard },
 ];
 const uid = () => Math.random().toString(36).slice(2, 10);
 const blankPanel = (): ClientPanel => ({ uid: uid(), imageUrl: null, caption: "", dialogue: "", prompt: "", voiceUrl: null });
@@ -177,16 +177,16 @@ export default function Studio({ id }: { id: number }) {
         <div className="flex flex-wrap items-center gap-3">
           <Link href="/dashboard" className="btn-ghost !px-2.5" aria-label="Volver a mi biblioteca"><ArrowLeft className="h-4 w-4" /></Link>
           <label className="sr-only" htmlFor="title">Título del cómic</label>
-          <input id="title" className="min-w-0 flex-1 border-b-[3px] border-ink bg-transparent font-display text-4xl tracking-wide outline-none focus-visible:border-pop"
+          <input id="title" className="min-w-0 flex-1 border-b-[3px] border-ink bg-transparent font-display text-3xl tracking-wide outline-none focus-visible:border-pop sm:text-4xl"
             value={comic.title} onChange={(e) => edit((c) => ({ ...c, title: e.target.value }))} maxLength={120} placeholder="Título del cómic" />
           <span className={`text-sm font-bold ${saveState === "error" ? "text-pop" : "text-ink/60"}`} role="status">{saveLabel}</span>
           {saveState === "error" && <button className="btn-ghost" onClick={() => { dirty.current = true; save(); }}>Reintentar</button>}
         </div>
 
-        <div role="tablist" aria-label="Secciones del estudio" className="mt-5 flex flex-wrap gap-2">
+        <div role="tablist" aria-label="Secciones del estudio" className="sticky top-16 z-30 -mx-4 mt-5 flex gap-2 overflow-x-auto bg-paper/90 px-4 py-2 backdrop-blur">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-              className={`rounded-lg border-[3px] border-ink px-4 py-2 text-sm font-extrabold ${tab === t.id ? "bg-ink text-white" : "bg-white hover:bg-sun/50"}`}>{t.label}</button>
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border-[3px] border-ink px-4 py-2 text-sm font-extrabold transition ${tab === t.id ? "bg-ink text-white shadow-hard-sm" : "bg-white hover:-translate-y-0.5 hover:bg-sun/50"}`}><t.icon className="h-4 w-4" aria-hidden />{t.label}</button>
           ))}
         </div>
 
@@ -225,7 +225,7 @@ export default function Studio({ id }: { id: number }) {
                   <label className="label" htmlFor="count">Número de viñetas: {panelCount}</label>
                   <input id="count" type="range" min={2} max={Math.min(24, maxPanels)} value={panelCount} onChange={(e) => setPanelCount(Number(e.target.value))} className="w-full accent-pop" />
                 </div>
-                <button className="btn-pop" onClick={genStory} disabled={storyBusy || idea.trim().length < 10 || !cfg.ai}>
+                <button className="btn-pop btn-shine" onClick={genStory} disabled={storyBusy || idea.trim().length < 10 || !cfg.ai}>
                   {storyBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Generar guion
                 </button>
               </section>
@@ -267,8 +267,9 @@ export default function Studio({ id }: { id: number }) {
                 <div className="mt-3 grid grid-cols-2 gap-3" role="radiogroup" aria-labelledby="h-style">
                   {(Object.keys(STYLES) as StyleId[]).map((k) => (
                     <button key={k} role="radio" aria-checked={comic.style === k} onClick={() => edit((c) => ({ ...c, style: k }))}
-                      className={`rounded-lg border-[3px] border-ink p-3 text-left ${comic.style === k ? "bg-sun shadow-hard-sm" : "bg-white hover:bg-sun/30"}`}>
-                      <span className="block font-extrabold">{STYLES[k].name}</span>
+                      className={`overflow-hidden rounded-lg border-[3px] border-ink text-left transition hover:-translate-y-0.5 ${comic.style === k ? "bg-sun shadow-hard" : "bg-white hover:bg-sun/30"}`}>
+                      <span className={`halftone block h-10 border-b-[3px] border-ink ${{ comic: "bg-sun", manga: "bg-white", anime: "bg-gradient-to-r from-pop to-grape", cyberpunk: "bg-gradient-to-r from-ink via-grape to-zap" }[k]}`} />
+                      <span className="block p-3 font-extrabold">{STYLES[k].name}{comic.style === k && " ✓"}</span>
                     </button>
                   ))}
                 </div>
