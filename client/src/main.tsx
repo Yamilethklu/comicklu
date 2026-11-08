@@ -34,3 +34,9 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Push notifications mobile (capacitor)
+import { usePushListener } from "./lib/push";
+if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
+  usePushListener();
+}
