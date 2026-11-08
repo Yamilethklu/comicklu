@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { useMe } from "@/lib/hooks";
 import { useToast } from "@/components/Toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationCenter } from "@/components/NotificationCenter";
+import { useQuery } from "@tanstack/react-query";
 import { Menu, X, Plus } from "lucide-react";
 
 export function Logo({ className = "" }: { className?: string }) {

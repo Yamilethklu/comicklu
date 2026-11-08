@@ -8,6 +8,7 @@ import Landing from "@/pages/Landing";
 import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Explorar from "@/pages/Explorar";
+import Notifications from "@/pages/Notifications";
 const Creador = lazy(() => import("@/pages/Creador"));
 const Studio = lazy(() => import("@/pages/Studio"));
 import Pricing from "@/pages/Pricing";
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/creador/:userId"><Creador /></Route>
           <Route path="/dashboard"><Protected><Dashboard /></Protected></Route>
           <Route path="/account"><Protected><Account /></Protected></Route>
+          <Route path="/notifications"><Protected><Notifications /></Protected></Route>
           <Route path="/studio/:id">{ (p) => <Protected><Studio id={Number(p.id)} /></Protected> }</Route>
           <Route component={NotFound} />
         </Switch>
