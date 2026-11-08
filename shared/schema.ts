@@ -27,9 +27,11 @@ export const comics = pgTable("comics", {
   style: text("style").notNull().default("comic"),
   settings: jsonb("settings").$type<ComicSettings>().notNull().default({}),
   coverUrl: text("cover_url"),
+  isPublic: boolean("is_public").notNull().default(false),
+  publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (t) => [index("comics_user_idx").on(t.userId)]);
+}, (t) => [index("comics_user_idx").on(t.userId), index("comics_public_idx").on(t.isPublic, t.createdAt)]);
 
 export const panels = pgTable("panels", {
   id: serial("id").primaryKey(),
@@ -75,6 +77,40 @@ export const stripeEvents = pgTable("stripe_events", {
   type: text("type").notNull(),
   processedAt: timestamp("processed_at").notNull().defaultNow(),
 });
+
+// Likes en cómics públicos
+export const comicLikes = pgTable("comic_likes", {
+  id: serial("id").primaryKey(),
+  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("comic_likes_unique").on(t.comicId, t.userId)]);
+
+// Comentarios en cómics públicos
+export const comicComments = pgTable("comic_comments", {
+  id: serial("id").primaryKey(),
+  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("comic_comments_comic_idx").on(t.comicId)]);
+
+// Seguidores entre usuarios
+export const userFollowers = pgTable("user_followers", {
+  id: serial("id").primaryKey(),
+  followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("user_followers_unique").on(t.followerId, t.followingId)]);
+
+// Códigos de referidos
+export const referrals = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  code: varchar("code").notNull().unique(),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  referredUserId: varchar("referred_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("referrals_owner_idx").on(t.ownerId)]);
 
 // Tokens de recuperación de contraseña (solo se guarda el hash del token)
 export const passwordResets = pgTable("password_resets", {
