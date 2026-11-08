@@ -2,7 +2,7 @@ import "dotenv/config";
 
 const isProd = process.env.NODE_ENV === "production";
 // Render supplies this URL after assigning the public hostname.
-const appUrl = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT ?? 5000}`).replace(/\/$/, "");
+const appUrl = (process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${process.env.PORT ?? 5000}`)).replace(/\/$/, "");
 if (isProd && new URL(appUrl).protocol !== "https:") {
   throw new Error("Configura APP_URL con https o despliega con RENDER_EXTERNAL_URL.");
 }
@@ -23,9 +23,9 @@ export const env = {
   databaseUrl: need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
   sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
   appUrl,
-  // URL pública del frontend (Vercel) cuando la API permanece en Render.
-  siteUrl: (process.env.PUBLIC_SITE_URL || appUrl).replace(/\/$/, ""),
-  uploadDir: process.env.UPLOAD_DIR ?? "uploads",
+  // Vercel es el único origen: pagos y correos vuelven a este mismo dominio.
+  siteUrl: appUrl,
+  uploadDir: process.env.UPLOAD_DIR ?? (process.env.VERCEL ? "/tmp/comicklu-uploads" : "uploads"),
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   supabaseBucket: process.env.SUPABASE_STORAGE_BUCKET ?? "comicklu-media",

@@ -28,12 +28,18 @@ import { log, requestLogger } from "./logger";
 import { aiEnabled, stripeEnabled, mailEnabled } from "./env";
 import { cloudStorageEnabled as csEnabled } from "./cloud-storage";
 
-export async function createApp() {
-  await runMigrations();
-  await ensureCloudBucket();
-  await ensureUploadDir();
-  await failStaleRenders();
-  startRenderWorker();
+export async function createApp(options: { serverless?: boolean } = {}) {
+  if (options.serverless) {
+    // En Vercel las migraciones se aplican una sola vez mediante el proceso de
+    // publicación, NUNCA en cada invocación. No iniciar timers ni workers permanentes.
+    if (!cloudStorageEnabled()) throw new Error("Vercel requiere Supabase Storage para guardar archivos persistentes.");
+  } else {
+    await runMigrations();
+    await ensureCloudBucket();
+    await ensureUploadDir();
+    await failStaleRenders();
+    startRenderWorker();
+  }
 
   const app = express();
   if (env.isProd) app.set("trust proxy", 1);
@@ -156,7 +162,7 @@ export async function createApp() {
 
     // Stripe
     checks.stripe = { ok: stripeEnabled(), detail: stripeEnabled() ? "configurado" : "no configurado" };
-    if (!stripeEnabled()) allOk = false;
+    // Stripe no es requisito para atender páginas, autenticación ni usuarios Gratis.
 
     // IA
     checks.ai = { ok: aiEnabled(), detail: aiEnabled() ? "habilitada" : "deshabilitada" };
@@ -181,12 +187,12 @@ export async function createApp() {
 
   const server = http.createServer(app);
 
-  if (env.isProd) {
+  if (env.isProd && !options.serverless) {
     const dir = path.resolve("dist/public");
     if (!fs.existsSync(dir)) throw new Error("Falta dist/public. Ejecuta `npm run build` primero.");
     app.use(express.static(dir, { index: false, maxAge: "1h" }));
     app.get("/{*splat}", (_req, res) => res.sendFile(path.join(dir, "index.html")));
-  } else if (process.env.NODE_ENV !== "test") {
+  } else if (!options.serverless && process.env.NODE_ENV !== "test") {
     const { createServer } = await import("vite");
     const vite = await createServer({ server: { middlewareMode: true, hmr: { server } }, appType: "spa" });
     app.use(vite.middlewares);
