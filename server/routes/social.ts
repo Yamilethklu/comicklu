@@ -9,7 +9,6 @@ import { PLANS } from "@shared/plans";
 import { createNotification } from "./notifications";
 
 export const socialRouter = Router();
-socialRouter.use(requireAuth);
 
 /** Listar cómics públicos (galería). Query: ?style=&search=&limit= */
 socialRouter.get("/comics/public", async (req, res) => {
@@ -38,11 +37,13 @@ socialRouter.get("/comics/public", async (req, res) => {
   const enriched = await Promise.all(rows.map(async (c) => {
     const [author] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, c.userId));
     const [{ count: likeCount }] = await db.select({ count: count() }).from(comicLikes).where(eq(comicLikes.comicId, c.id));
-    const [myLike] = await db.select().from(comicLikes).where(and(eq(comicLikes.comicId, c.id), eq(comicLikes.userId, req.user!.id)));
+    const [myLike] = req.user ? await db.select().from(comicLikes).where(and(eq(comicLikes.comicId, c.id), eq(comicLikes.userId, req.user.id))) : [];
     return { ...c, author: { id: author!.id, name: author!.name }, likeCount: Number(likeCount), likedByMe: !!myLike };
   }));
   res.json(enriched);
 });
+
+socialRouter.use(requireAuth);
 
 /** Marcar/desmarcar un cómic como público (solo el autor). */
 socialRouter.post("/comics/:id/toggle-public", async (req, res) => {
