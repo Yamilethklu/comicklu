@@ -14,13 +14,4 @@ CREATE INDEX IF NOT EXISTS "site_feedback_status_idx" ON "site_feedback" ("statu
 CREATE INDEX IF NOT EXISTS "site_feedback_user_idx" ON "site_feedback" ("user_id");
 --> statement-breakpoint
 ALTER TABLE "site_feedback" ENABLE ROW LEVEL SECURITY;
---> statement-breakpoint
-DO $
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON TABLE "site_feedback" FROM anon;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON TABLE "site_feedback" FROM authenticated;
-  END IF;
-END $;
+-- RLS queda habilitada sin politicas para roles de Data API; la app usa el backend.
