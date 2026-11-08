@@ -47,8 +47,9 @@ export async function buildComicPdf(comic: ComicData): Promise<Blob> {
   if (!comic.panels.length) throw new Error("Agrega viñetas antes de exportar.");
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("El navegador no permite generar el PDF.");
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("El navegador no permite generar el PDF.");
+  const ctx: CanvasRenderingContext2D = context;
   const images: Uint8Array[] = [];
   function background() {
     ctx.fillStyle = "#fffdf5"; ctx.fillRect(0, 0, W, H);
@@ -99,10 +100,10 @@ export async function buildComicPdf(comic: ComicData): Promise<Blob> {
   }
 
   // Montaje de PDF 1.4 sin dependencias externas; páginas JPEG incrustadas.
-  const chunks: (Uint8Array | Blob)[] = [];
+  const chunks: BlobPart[] = [];
   const offsets: number[] = [0];
   let length = 0;
-  const add = (b: Uint8Array) => { chunks.push(b); length += b.byteLength; };
+  const add = (b: Uint8Array) => { const ab = new ArrayBuffer(b.byteLength); new Uint8Array(ab).set(b); chunks.push(ab); length += b.byteLength; };
   const write = (s: string) => add(encode(s));
   write("%PDF-1.4\n");
   function begin(id: number) { offsets[id] = length; write(`${id} 0 obj\n`); }

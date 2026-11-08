@@ -41,6 +41,8 @@ export default function Studio({ id }: { id: number }) {
   const [notice, setNotice] = useState<{ msg: string; upgrade: boolean } | null>(null);
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [storyBusy, setStoryBusy] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchProgress, setBatchProgress] = useState("");
   const [idea, setIdea] = useState("");
   const [panelCount, setPanelCount] = useState(6);
   const [renders, setRenders] = useState<RenderRow[]>([]);
@@ -145,6 +147,33 @@ export default function Studio({ id }: { id: number }) {
       setPanel(p.uid, { imageUrl: url }); refreshMe();
     } catch (e) { fail(e); } finally { setBusyFor(p.uid, null); }
   };
+
+  // Una acción crea las imágenes de toda la historia, panel a panel.
+  // Cada llamada consume la cuota de su plan mediante el backend, no el cliente.
+  const generateAllImages = async () => {
+    setBatchBusy(true); setNotice(null); setBatchProgress("");
+    try {
+      await save();
+      if (dirty.current) throw new Error("No se pudo guardar la historia antes de generar.");
+      const missing = comic.panels.filter(p => !p.imageUrl && p.prompt.trim().length >= 3);
+      if (!missing.length) throw new Error("Primero genera el guion; las viñetas deben tener una descripción.");
+      for (let i = 0; i < missing.length; i++) {
+        const panel = missing[i];
+        setBatchProgress(`Generando imagen ${i + 1} de ${missing.length}…`);
+        const result = await api<{ url: string }>("POST", "/api/ai/image", {
+          prompt: panel.prompt, style: comic.style,
+          palette: comic.settings.palette || undefined,
+          orientation: "landscape", comicId: id,
+        });
+        setPanel(panel.uid, { imageUrl: result.url });
+        refreshMe();
+      }
+      setBatchProgress(`¡Listo! Se generaron ${missing.length} imágenes.`);
+      setTab("vista");
+    } catch (e) { fail(e); }
+    finally { setBatchBusy(false); }
+  };
+
   const genVoice = async (p: ClientPanel, voice: string) => {
     setNotice(null); setBusyFor(p.uid, "voice");
     try {
@@ -294,8 +323,15 @@ export default function Studio({ id }: { id: number }) {
             <div>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-ink/70">{comic.panels.length} de {maxPanels} viñetas · imágenes con IA: {quota("image")} · voces: {quota("voice")}</p>
-                <button className="btn-pop" onClick={addPanel}><Plus className="h-4 w-4" />Agregar viñeta</button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className="btn-sun" onClick={generateAllImages} disabled={batchBusy || !cfg.ai || comic.panels.length === 0}>
+                    {batchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Generar todas las imágenes
+                  </button>
+                  <button className="btn-pop" onClick={addPanel}><Plus className="h-4 w-4" />Agregar viñeta</button>
+                </div>
               </div>
+              {batchProgress && <p className="mb-3 text-sm font-bold" role="status">{batchProgress}</p>}
               {comic.panels.length === 0 ? (
                 <div className="frame p-10 text-center">
                   <p className="font-display text-3xl tracking-wide">Aún no hay viñetas</p>

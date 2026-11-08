@@ -187,6 +187,9 @@ export interface ComicSettings {
   language?: string;  // idioma del cómic
   palette?: string;   // descripción libre de colores
   layout?: "vertical" | "horizontal";
+  characterReferenceUrl?: string;
+  characterName?: string;
+  characterDescription?: string;
 }
 
 export type User = typeof users.$inferSelect;
