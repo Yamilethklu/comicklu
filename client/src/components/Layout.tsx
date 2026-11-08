@@ -59,6 +59,7 @@ export function Nav() {
               <Menu className="h-6 w-6" />
             </button>
             <nav className="hidden md:flex flex-wrap items-center gap-1 text-sm font-bold sm:gap-2" aria-label="Principal">
+              <NavLink href="/explorar">Explorar</NavLink>
               <NavLink href="/precios">Precios</NavLink>
               {user ? (
                 <>

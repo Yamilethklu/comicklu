@@ -7,6 +7,8 @@ import { ToastProvider } from "@/components/Toast";
 import Landing from "@/pages/Landing";
 import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
+import Explorar from "@/pages/Explorar";
+const Creador = lazy(() => import("@/pages/Creador"));
 const Studio = lazy(() => import("@/pages/Studio"));
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
@@ -43,8 +45,10 @@ export default function App() {
           <Route path="/registro"><AuthPage mode="register" /></Route>
           <Route path="/olvide" component={ForgotPassword} />
           <Route path="/restablecer" component={ResetPassword} />
+          <Route path="/explorar" component={Explorar} />
           <Route path="/precios" component={Pricing} />
           <Route path="/pricing"><Redirect to="/precios" /></Route>
+          <Route path="/creador/:userId"><Creador /></Route>
           <Route path="/dashboard"><Protected><Dashboard /></Protected></Route>
           <Route path="/account"><Protected><Account /></Protected></Route>
           <Route path="/studio/:id">{ (p) => <Protected><Studio id={Number(p.id)} /></Protected> }</Route>
