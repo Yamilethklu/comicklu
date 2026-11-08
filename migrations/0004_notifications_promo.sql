@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS public.push_tokens (
   platform TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS push_tokens_user_idx ON public.push_tokens (user_id);
+--> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS public.notifications (
   id SERIAL PRIMARY KEY,
@@ -18,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS notifications_user_idx ON public.notifications (user_id, created_at DESC);
 
 -- Códigos promocionales y tarjetas de regalo
@@ -32,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+--> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS public.promo_code_uses (
   id SERIAL PRIMARY KEY,
@@ -40,6 +44,7 @@ CREATE TABLE IF NOT EXISTS public.promo_code_uses (
   used_at TIMESTAMP NOT NULL DEFAULT NOW(),
   UNIQUE (promo_code_id, user_id)
 );
+--> statement-breakpoint
 
 DO $$
 BEGIN

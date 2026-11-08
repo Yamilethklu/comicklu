@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.user_credits (
   balance INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS user_credits_user_idx ON public.user_credits (user_id);
 
 -- Historial de movimientos de crédito
@@ -16,7 +17,9 @@ CREATE TABLE IF NOT EXISTS public.credit_transactions (
   reference TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS credit_transactions_user_idx ON public.credit_transactions (user_id);
+--> statement-breakpoint
 
 DO $$
 BEGIN
