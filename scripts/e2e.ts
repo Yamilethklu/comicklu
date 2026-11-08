@@ -75,6 +75,15 @@ try {
   r = await api("POST", "/api/auth/register", { name: "Dup", email, password: "password123" });
   assert.equal(r.status, 409); ok("correo duplicado");
 
+  // --- Comentarios del sitio y acceso al panel del propietario
+  r = await api("GET", "/api/feedback"); assert.equal(r.status, 200); ok("opiniones públicas disponibles");
+  r = await api("POST", "/api/feedback", { rating: 5, comment: "La app de ComicKlu es sencilla de usar." });
+  assert.equal(r.status, 201); ok("usuario envía reseña para moderación");
+  r = await api("GET", "/api/feedback"); assert.equal(r.status, 200);
+  assert.equal(r.json.length, 0); ok("comentario no aparece sin aprobación");
+  r = await api("GET", "/api/admin/summary"); assert.equal(r.status, 403); ok("un cliente no accede a estadísticas privadas");
+  r = await api("GET", "/api/admin/feedback"); assert.equal(r.status, 403); ok("un cliente no modera opiniones");
+
   // --- comics + límites free
   r = await api("POST", "/api/comics", { title: "Mi cómic", style: "manga", panels: [{ caption: "Hola" }] });
   assert.equal(r.status, 201); const id = r.json.id; assert.equal(r.json.panels.length, 1); ok("crear cómic");
