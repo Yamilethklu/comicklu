@@ -33,6 +33,9 @@ const comicIn = z.object({
     language: z.string().max(40).optional(),
     palette: z.string().max(200).optional(),
     layout: z.enum(["vertical", "horizontal"]).optional(),
+    characterReferenceUrl: z.string().max(2000).optional(),
+    characterName: z.string().max(80).optional(),
+    characterDescription: z.string().max(600).optional(),
   }).default({}),
   coverUrl: z.string().max(2000).nullable().optional(),
   panels: z.array(panelIn).max(200).default([]),
@@ -40,6 +43,21 @@ const comicIn = z.object({
 
 // Solo se aceptan archivos propios (/media/...). Los enlaces externos se descargan primero con /api/uploads/from-url.
 const safeUrl = (u?: string | null) => (u && /^\/media\/[\w.-]+$/.test(u) ? u : null);
+
+
+// La referencia Premium debe ser una imagen subida a la propia cuenta,
+// nunca una ruta de otro usuario ni un enlace externo arbitrario.
+async function validatedSettings(user: typeof import("@shared/schema").users.$inferSelect, settings: z.infer<typeof comicIn>["settings"]) {
+  const reference = settings.characterReferenceUrl;
+  if (!reference) return settings;
+  if (effectivePlan(user) !== "premium") throw httpError(402, "Las referencias de personaje son exclusivas de Premium.");
+  if (!/^\/media\/[a-f0-9-]{36}\.(png|jpg|webp)$/.test(reference))
+    throw httpError(400, "La referencia debe ser una imagen PNG, JPG o WEBP subida a ComicKlu.");
+  const [owned] = await db.select({ id: assets.id }).from(assets)
+    .where(and(eq(assets.userId, user.id), eq(assets.url, reference), eq(assets.type, "image")));
+  if (!owned) throw httpError(403, "Esta referencia no pertenece a tu cuenta.");
+  return settings;
+}
 
 async function loadOwned(userId: string, id: number) {
   const [c] = await db.select().from(comics).where(and(eq(comics.id, id), eq(comics.userId, userId)));
@@ -72,7 +90,7 @@ comicsRouter.post("/", async (req, res) => {
 
   const [c] = await db.insert(comics).values({
     userId: req.user!.id, title: body.title, synopsis: body.synopsis, story: body.story,
-    style: body.style, settings: body.settings, coverUrl: safeUrl(body.coverUrl),
+    style: body.style, settings: await validatedSettings(req.user!, body.settings), coverUrl: safeUrl(body.coverUrl),
   }).returning();
   if (body.panels.length) {
     await db.insert(panels).values(body.panels.map((p, i) => ({
@@ -99,7 +117,7 @@ comicsRouter.put("/:id", async (req, res) => {
   await db.transaction(async (tx) => {
     await tx.update(comics).set({
       title: body.title, synopsis: body.synopsis, story: body.story, style: body.style,
-      settings: body.settings, coverUrl: safeUrl(body.coverUrl), updatedAt: new Date(),
+      settings: await validatedSettings(req.user!, body.settings), coverUrl: safeUrl(body.coverUrl), updatedAt: new Date(),
     }).where(eq(comics.id, id));
     await tx.delete(panels).where(eq(panels.comicId, id));
     if (body.panels.length) {

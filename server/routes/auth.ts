@@ -173,6 +173,7 @@ configRouter.get("/", (_req, res) => {
     plans: PLANS,
     stripe: checkoutEnabled(),
     ai: aiEnabled(),
+    referenceImages: !!env.openaiKey,
     mail: mailEnabled(),
     yearly: {
       pro: !!env.prices.pro.year,

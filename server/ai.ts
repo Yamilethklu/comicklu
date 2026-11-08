@@ -3,9 +3,10 @@ import { randomInt } from "node:crypto";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { env } from "./env";
 import { sniffImage } from "./files";
+import { signedObjectUrl, cloudStorageEnabled } from "./cloud-storage";
 import { runFfmpeg } from "./video";
 
 /**
@@ -215,6 +216,36 @@ export async function generateImage(prompt: string, orientation: Orientation): P
     if (env.pollinations.enabled) steps.push(["pollinations", () => pollinationsImage(prompt, orientation)]);
   }
   return firstOk("imagen", steps);
+}
+
+
+/** Generación basada en una referencia REAL, no en descripción textual solamente.
+ * La imagen se descarga desde Supabase privado y solo se envía al modelo contratado.
+ */
+export async function generateImageWithReference(prompt: string, orientation: Orientation, referenceUrl: string): Promise<ImageResult> {
+  if (!env.openaiKey) throw new Error("La generación por referencia todavía no está configurada.");
+  if (!cloudStorageEnabled()) throw new Error("La referencia requiere Supabase Storage privado.");
+  const match = /^\/media\/([a-f0-9-]{36}\.(?:png|jpg|webp))$/.exec(referenceUrl);
+  if (!match) throw new Error("Imagen de referencia inválida.");
+  const response = await fetch(await signedObjectUrl(match[1]), { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) throw new Error("No se pudo consultar la imagen de referencia.");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > 3 * 1024 * 1024) throw new Error("La referencia supera 3 MB.");
+  const imageType = sniffImage(bytes);
+  if (!imageType || !["png", "jpg", "webp"].includes(imageType.ext)) throw new Error("Referencia no admitida.");
+  const input = await toFile(bytes, "personaje." + imageType.ext, { type: imageType.mime });
+  const size = orientation === "square" ? "1024x1024" : orientation === "portrait" ? "1024x1536" : "1536x1024";
+  const result = await openai().images.edit({
+    model: env.characterImageModel,
+    image: input,
+    prompt: "Use the supplied image as the PRIMARY visual reference for the main character. Keep the same recognizable face, hair, distinctive features and outfit across comic scenes. Create a NEW scene and pose matching this description: " + prompt,
+    size,
+    n: 1,
+  });
+  const first = result.data?.[0];
+  if (first?.b64_json) return asImage(Buffer.from(first.b64_json, "base64"));
+  if (first?.url) return asImage(Buffer.from(await (await fetchOk(first.url, {}, 60_000)).arrayBuffer()));
+  throw new Error("El proveedor no devolvió imagen.");
 }
 
 // ---------- voz ----------

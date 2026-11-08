@@ -61,6 +61,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
       "500 imágenes con IA al mes",
       "1000 guiones con IA al mes",
       "300 voces con IA al mes",
+      "Personaje de referencia: hasta 20 imágenes al mes (proveedor compatible)",
       "40 videos animados al mes",
     ],
   },

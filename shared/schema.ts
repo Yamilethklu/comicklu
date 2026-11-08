@@ -192,3 +192,13 @@ export interface ComicSettings {
 export type User = typeof users.$inferSelect;
 export type Comic = typeof comics.$inferSelect;
 export type Panel = typeof panels.$inferSelect;
+
+/** Cada exportación PDF se compra una sola vez por cómic y usuario. */
+export const pdfOrders = pgTable("pdf_orders", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
+  stripeSessionId: text("stripe_session_id").notNull().unique(),
+  amountCents: integer("amount_cents").notNull(),
+  paidAt: timestamp("paid_at").notNull().defaultNow(),
+}, (t) => [index("pdf_orders_comic_user_idx").on(t.comicId, t.userId)]);
