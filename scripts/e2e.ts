@@ -124,12 +124,21 @@ try {
   // --- Stripe: checkout (sin llamar a Stripe real) y webhook firmado
   r = await api("POST", "/api/billing/portal", {}); assert.equal(r.status, 400); ok("portal sin cliente → 400");
   const stripe = new Stripe("sk_test_dummy");
+  // Aislar Stripe del test: el webhook productivo consulta la suscripción actual.
+  // La API real no debe recibir una petición con nuestra clave ficticia.
+  const stripeService = (await import("../server/stripe")).getStripe();
+  let latestSubscription: any = null;
+  (stripeService.subscriptions as any).retrieve = async (id: string) => {
+    if (!latestSubscription || latestSubscription.id !== id) throw new Error("Suscripción simulada no encontrada");
+    return latestSubscription;
+  };
   const sub = (status: string, price: string, cancel = false) => ({
     id: "evt_" + Math.random().toString(36).slice(2), object: "event", type: "customer.subscription.updated",
     data: { object: { id: "sub_123", object: "subscription", customer: "cus_e2e", status, cancel_at_period_end: cancel, metadata: { userId: me.id },
       items: { data: [{ current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400, price: { id: price } }] } } },
   });
   const post = async (evt: object, secret = "whsec_test_secret") => {
+    latestSubscription = (evt as { data: { object: unknown } }).data.object;
     const payload = JSON.stringify(evt);
     const header = stripe.webhooks.generateTestHeaderString({ payload, secret });
     return fetch(base + "/api/billing/webhook", { method: "POST", headers: { "content-type": "application/json", "stripe-signature": header }, body: payload });
