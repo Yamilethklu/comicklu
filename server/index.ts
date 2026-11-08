@@ -18,22 +18,15 @@ import { authRouter, configRouter } from "./routes/auth";
 import { comicsRouter, uploadsRouter } from "./routes/comics";
 import { aiRouter } from "./routes/ai";
 import { billingRouter, stripeWebhook } from "./routes/billing";
-import { videoRouter, failStaleRenders, startRenderWorker } from "./routes/video";
-import { promoRouter } from "./routes/promo";
+import { videoRouter, failStaleRenders } from "./routes/video";
 import { socialRouter } from "./routes/social";
-import { notificationsRouter, createNotification } from "./routes/notifications";
-import { creditsRouter } from "./routes/credits";
 import { uploadRoot, ensureUploadDir } from "./files";
-import { log, requestLogger } from "./logger";
-import { aiEnabled, stripeEnabled, mailEnabled } from "./env";
-import { cloudStorageEnabled as csEnabled } from "./cloud-storage";
 
 export async function createApp() {
   await runMigrations();
   await ensureCloudBucket();
   await ensureUploadDir();
   await failStaleRenders();
-  startRenderWorker();
 
   const app = express();
   if (env.isProd) app.set("trust proxy", 1);
@@ -76,9 +69,6 @@ export async function createApp() {
     }
     next();
   });
-
-  // Logging estructurado + request ID en todas las peticiones
-  app.use(requestLogger);
 
   // El webhook de Stripe necesita el body crudo: va ANTES de express.json().
   app.post("/api/billing/webhook", express.raw({ type: "application/json" }), stripeWebhook);
@@ -128,54 +118,14 @@ export async function createApp() {
   }));
   app.use(loadUser);
 
-  app.get("/api/health", async (_req, res) => {
-    const checks: Record<string, { ok: boolean; detail?: string }> = {};
-    let allOk = true;
-
-    // Base de datos
-    try {
-      await pool.query("SELECT 1");
-      checks.database = { ok: true };
-    } catch (e) {
-      checks.database = { ok: false, detail: (e as Error).message };
-      allOk = false;
-    }
-
-    // Supabase Storage
-    try {
-      if (csEnabled()) {
-        await Promise.resolve(); // el bucket se asegura en el arranque
-        checks.supabase = { ok: true };
-      } else {
-        checks.supabase = { ok: true, detail: "no configurado (almacenamiento local)" };
-      }
-    } catch (e) {
-      checks.supabase = { ok: false, detail: (e as Error).message };
-      allOk = false;
-    }
-
-    // Stripe
-    checks.stripe = { ok: stripeEnabled(), detail: stripeEnabled() ? "configurado" : "no configurado" };
-    if (!stripeEnabled()) allOk = false;
-
-    // IA
-    checks.ai = { ok: aiEnabled(), detail: aiEnabled() ? "habilitada" : "deshabilitada" };
-
-    // Correo
-    checks.mail = { ok: mailEnabled(), detail: mailEnabled() ? "configurado" : "no configurado" };
-
-    res.status(allOk ? 200 : 503).json({ ok: allOk, service: "panelforge-api", checks });
-  });
+  app.get("/api/health", (_req, res) => res.json({ ok: true }));
   app.use("/api/config", configRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/comics", comicsRouter);
+  app.use("/api/social", socialRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/ai", aiRouter);
   app.use("/api/billing", billingRouter);
-  app.use("/api/social", socialRouter);
-  app.use("/api/notifications", notificationsRouter);
-  app.use("/api/billing/credits", creditsRouter);
-  app.use("/api/promo", promoRouter);
   app.use("/api", videoRouter);
   app.use("/api", (_req, res) => res.status(404).json({ message: "Ruta no encontrada" }));
 

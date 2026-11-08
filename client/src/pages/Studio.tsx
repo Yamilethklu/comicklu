@@ -268,7 +268,7 @@ export default function Studio({ id }: { id: number }) {
                   {(Object.keys(STYLES) as StyleId[]).map((k) => (
                     <button key={k} role="radio" aria-checked={comic.style === k} onClick={() => edit((c) => ({ ...c, style: k }))}
                       className={`overflow-hidden rounded-lg border-[3px] border-ink text-left transition hover:-translate-y-0.5 ${comic.style === k ? "bg-sun shadow-hard" : "bg-white hover:bg-sun/30"}`}>
-                      <span className={`halftone block h-10 border-b-[3px] border-ink ${{ comic: "bg-sun", manga: "bg-white", anime: "bg-gradient-to-r from-pop to-grape", cyberpunk: "bg-gradient-to-r from-ink via-grape to-zap", acuarela: "bg-gradient-to-r from-mint to-zap", pixel: "bg-gradient-to-r from-sun to-pop", noir: "bg-gradient-to-r from-ink to-ink/50", _3d: "bg-gradient-to-r from-zap to-ink" }[k] ?? "bg-white"}`} />
+                      <span className={`halftone block h-10 border-b-[3px] border-ink ${{ comic: "bg-sun", manga: "bg-white", anime: "bg-gradient-to-r from-pop to-grape", cyberpunk: "bg-gradient-to-r from-ink via-grape to-zap" }[k]}`} />
                       <span className="block p-3 font-extrabold">{STYLES[k].name}{comic.style === k && " ✓"}</span>
                     </button>
                   ))}

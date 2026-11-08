@@ -35,6 +35,7 @@ const comicIn = z.object({
     layout: z.enum(["vertical", "horizontal"]).optional(),
   }).default({}),
   coverUrl: z.string().max(2000).nullable().optional(),
+  isPublic: z.boolean().default(false),
   panels: z.array(panelIn).max(200).default([]),
 });
 
@@ -56,7 +57,7 @@ comicsRouter.get("/", async (req, res) => {
   // Solo las columnas que usa la biblioteca: evita enviar `story` (hasta 20 000 caracteres) de cada cómic.
   const rows = await db.select({
     id: comics.id, title: comics.title, synopsis: comics.synopsis, style: comics.style,
-    coverUrl: comics.coverUrl, updatedAt: comics.updatedAt,
+    coverUrl: comics.coverUrl, updatedAt: comics.updatedAt, isPublic: comics.isPublic,
   }).from(comics).where(eq(comics.userId, req.user!.id)).orderBy(desc(comics.updatedAt));
   res.json(rows);
 });
@@ -72,7 +73,7 @@ comicsRouter.post("/", async (req, res) => {
 
   const [c] = await db.insert(comics).values({
     userId: req.user!.id, title: body.title, synopsis: body.synopsis, story: body.story,
-    style: body.style, settings: body.settings, coverUrl: safeUrl(body.coverUrl),
+    style: body.style, settings: body.settings, coverUrl: safeUrl(body.coverUrl), isPublic: body.isPublic, publishedAt: body.isPublic ? new Date() : null,
   }).returning();
   if (body.panels.length) {
     await db.insert(panels).values(body.panels.map((p, i) => ({
@@ -99,7 +100,7 @@ comicsRouter.put("/:id", async (req, res) => {
   await db.transaction(async (tx) => {
     await tx.update(comics).set({
       title: body.title, synopsis: body.synopsis, story: body.story, style: body.style,
-      settings: body.settings, coverUrl: safeUrl(body.coverUrl), updatedAt: new Date(),
+      settings: body.settings, coverUrl: safeUrl(body.coverUrl), isPublic: body.isPublic, publishedAt: body.isPublic ? new Date() : null, updatedAt: new Date(),
     }).where(eq(comics.id, id));
     await tx.delete(panels).where(eq(panels.comicId, id));
     if (body.panels.length) {
