@@ -23,8 +23,8 @@ export const env = {
   databaseUrl: need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
   sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
   appUrl,
-  // URL pública del frontend (Vercel) cuando la API permanece en Render.
-  siteUrl: (process.env.PUBLIC_SITE_URL || appUrl).replace(/\/$/, ""),
+  // Un único origen público en Render: Checkout, portal y recuperación vuelven al mismo servidor.
+  siteUrl: appUrl,
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
