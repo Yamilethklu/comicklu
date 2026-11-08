@@ -6,7 +6,7 @@ import { PLANS, METRIC_LABEL, type Metric, type PlanId } from "@shared/plans";
 export const currentMonth = () => new Date().toISOString().slice(0, 7);
 
 /** Plan efectivo: si la suscripción no está vigente, se aplica Gratis. */
-export function effectivePlan(u: User): PlanId {
+export function effectivePlan(u: Pick<User, "plan" | "subscriptionStatus" | "currentPeriodEnd">): PlanId {
   if (u.plan === "free") return "free";
   // Nunca autorizar pago pendiente, estado desconocido o un periodo vencido.
   // El usuario conserva la sesión y sus cómics en modo Gratis.
