@@ -11,9 +11,9 @@ import { Menu, X, Plus } from "lucide-react";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <Link href="/" className={`group inline-flex items-center gap-2 ${className}`} aria-label="Panelforge, inicio">
-      <span className="grid h-9 w-9 -rotate-6 place-items-center rounded-md border-[3px] border-ink bg-sun font-display text-xl leading-none shadow-hard-sm transition group-hover:rotate-6 group-hover:bg-pop group-hover:text-white">P</span>
-      <span className="font-display text-2xl tracking-wide">Panelforge</span>
+    <Link href="/" className={`group inline-flex items-center gap-2 ${className}`} aria-label="ComicKlu, inicio">
+      <span className="grid h-9 w-9 -rotate-6 place-items-center rounded-md border-[3px] border-ink bg-sun font-display text-xl leading-none shadow-hard-sm transition group-hover:rotate-6 group-hover:bg-pop group-hover:text-white">C</span>
+      <span className="font-display text-2xl tracking-wide">ComicKlu</span>
     </Link>
   );
 }

@@ -446,10 +446,10 @@ export default function Studio({ id }: { id: number }) {
               </section>
               <section className="frame p-5" aria-labelledby="h-video">
                 <h2 id="h-video" className="text-xl font-extrabold">Video animado</h2>
-                {limits.monthly.video === 0 ? (
+                {limits.monthly.video === 0 || !cfg.video ? (
                   <>
-                    <p className="mt-1 text-sm text-ink/70">Convierte tus viñetas en un video MP4 con movimiento de cámara, subtítulos y tu narración. Disponible desde el plan Pro.</p>
-                    <Link href="/precios" className="btn-pop mt-4">Mejorar a Pro</Link>
+                    <p className="mt-1 text-sm text-ink/70">La exportación de video está en preparación para Vercel. Mientras tanto puedes leer la historieta completa y descargar el PDF mediante compra individual.</p>
+                    {cfg.video && <Link href="/precios" className="btn-pop mt-4">Mejorar a Pro</Link>}
                   </>
                 ) : (
                   <>

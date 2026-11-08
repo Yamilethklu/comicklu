@@ -73,7 +73,7 @@ export function PlanCards({ compact }: { compact?: boolean }) {
                 ) : isCurrent ? (
                   <button className="btn-ghost w-full" disabled>Tu plan actual</button>
                 ) : !allowNativeCheckout ? (
-                  <p className="text-center text-xs text-ink/70">Disponible en la versión web de Panelforge.</p>
+                  <p className="text-center text-xs text-ink/70">Disponible en la versión web de ComicKlu.</p>
                 ) : (
                   <button className={featured ? "btn-pop w-full" : "btn-sun w-full"} disabled={!cfg.stripe || busy !== null} onClick={() => go(p.id as "pro" | "premium")}>
                     {busy === p.id && <Loader2 className="h-4 w-4 animate-spin" />}

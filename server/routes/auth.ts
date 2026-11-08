@@ -175,6 +175,7 @@ configRouter.get("/", (_req, res) => {
     stripe: checkoutEnabled(),
     ai: aiEnabled(),
     referenceImages: !!env.openaiKey,
+    video: !process.env.VERCEL,
     mail: mailEnabled(),
     yearly: {
       pro: !!env.prices.pro.year,

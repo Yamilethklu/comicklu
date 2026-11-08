@@ -13,7 +13,7 @@ export interface Me {
 }
 export interface AppConfig {
   plans: Record<"free" | "pro" | "premium", PlanDef>;
-  stripe: boolean; ai: boolean; referenceImages: boolean; mail: boolean; yearly: { pro: boolean; premium: boolean };
+  stripe: boolean; ai: boolean; referenceImages: boolean; video: boolean; mail: boolean; yearly: { pro: boolean; premium: boolean };
 }
 export interface PanelData {
   imageUrl: string | null; caption: string; dialogue: string; prompt: string; voiceUrl: string | null;
