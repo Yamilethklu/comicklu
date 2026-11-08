@@ -15,6 +15,27 @@
       "when": 1792607669850,
       "tag": "0001_password_resets",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794000002000,
+      "tag": "0002_social_features",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794000003000,
+      "tag": "0003_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794000004000,
+      "tag": "0004_notifications_promo",
+      "breakpoints": true
     }
   ]
 }
