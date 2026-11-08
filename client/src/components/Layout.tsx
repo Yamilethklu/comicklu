@@ -63,14 +63,11 @@ export function Nav() {
             <nav className="hidden md:flex flex-wrap items-center gap-1 text-sm font-bold sm:gap-2" aria-label="Principal">
               <NavLink href="/explorar">Explorar</NavLink>
               <NavLink href="/opiniones">Opiniones</NavLink>
-              <NavLink href="/explorar">Explorar</NavLink>
-            <NavLink href="/opiniones">Opiniones</NavLink>
-            <NavLink href="/precios">Precios</NavLink>
+              <NavLink href="/precios">Precios</NavLink>
               {user ? (
                 <>
                   <NavLink href="/dashboard">Mi biblioteca</NavLink>
                   <NavLink href="/account">Cuenta</NavLink>
-                {user.role === "admin" && <NavLink href="/admin">Administración</NavLink>}
                   {user.role === "admin" && <NavLink href="/admin">Administración</NavLink>}
                   <button onClick={logout} className="btn-ghost">Salir</button>
                 </>
@@ -101,6 +98,8 @@ export function Nav() {
             </button>
           </div>
           <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+            <NavLink href="/explorar">Explorar</NavLink>
+            <NavLink href="/opiniones">Opiniones</NavLink>
             <NavLink href="/precios">Precios</NavLink>
             {user ? (
               <>

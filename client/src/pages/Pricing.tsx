@@ -5,7 +5,7 @@ import { api, errMsg } from "@/lib/api";
 import { allowNativeCheckout, openExternal } from "@/lib/native";
 import { useConfig, useMe } from "@/lib/hooks";
 import { Page, ErrorNote } from "@/components/Layout";
-import type { PlanId } from "@shared/plans";
+import { PLANS, type PlanId } from "@shared/plans";
 
 export function PlanCards({ compact }: { compact?: boolean }) {
   const cfg = useConfig();
@@ -14,11 +14,11 @@ export function PlanCards({ compact }: { compact?: boolean }) {
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  if (!cfg) return null;
+  const plans = cfg?.plans ?? PLANS;
 
   const current: PlanId = me?.effectivePlan ?? "free";
   const hasSub = !!user && !!user.subscriptionStatus && ["active", "trialing", "past_due"].includes(user.subscriptionStatus);
-  const yearlyAvailable = cfg.yearly.pro && cfg.yearly.premium;
+  const yearlyAvailable = !!(cfg?.yearly?.pro && cfg?.yearly?.premium);
 
   const go = async (plan: "pro" | "premium") => {
     if (!user) return nav("/registro");
@@ -48,7 +48,7 @@ export function PlanCards({ compact }: { compact?: boolean }) {
       )}
       <ErrorNote message={error} />
       <div className="mt-2 grid gap-5 md:grid-cols-3">
-        {(Object.values(cfg.plans)).map((p) => {
+        {(Object.values(plans)).map((p) => {
           const featured = p.id === "pro";
           const price = interval === "year" && yearlyAvailable ? p.priceYear : p.priceMonth;
           const isCurrent = user ? current === p.id : false;
@@ -75,9 +75,9 @@ export function PlanCards({ compact }: { compact?: boolean }) {
                 ) : !allowNativeCheckout ? (
                   <p className="text-center text-xs text-ink/70">Disponible en la versión web de ComicKlu.</p>
                 ) : (
-                  <button className={featured ? "btn-pop w-full" : "btn-sun w-full"} disabled={!cfg.stripe || busy !== null} onClick={() => go(p.id as "pro" | "premium")}>
+                  <button className={featured ? "btn-pop w-full" : "btn-sun w-full"} disabled={!cfg?.stripe || busy !== null} onClick={() => go(p.id as "pro" | "premium")}>
                     {busy === p.id && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {!cfg.stripe ? "Pagos no disponibles aún" : hasSub ? "Cambiar de plan" : `Elegir ${p.name}`}
+                    {!cfg?.stripe ? "Pagos no disponibles aún" : hasSub ? "Cambiar de plan" : `Elegir ${p.name}`}
                   </button>
                 )}
               </div>
