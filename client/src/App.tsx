@@ -9,6 +9,8 @@ import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Explorar from "@/pages/Explorar";
 import Notifications from "@/pages/Notifications";
+const Opiniones = lazy(() => import("@/pages/Opiniones"));
+const Administracion = lazy(() => import("@/pages/Administracion"));
 const Creador = lazy(() => import("@/pages/Creador"));
 const Studio = lazy(() => import("@/pages/Studio"));
 import Pricing from "@/pages/Pricing";
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/restablecer" component={ResetPassword} />
           <Route path="/explorar" component={Explorar} />
           <Route path="/precios" component={Pricing} />
+          <Route path="/opiniones" component={Opiniones} />
+          <Route path="/admin"><Protected><Administracion /></Protected></Route>
           <Route path="/pricing"><Redirect to="/precios" /></Route>
           <Route path="/creador/:userId"><Creador /></Route>
           <Route path="/dashboard"><Protected><Dashboard /></Protected></Route>
