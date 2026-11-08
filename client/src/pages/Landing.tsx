@@ -49,12 +49,18 @@ const STEPS = [
   { icon: Mic, t: "Agrega voz y exporta", d: "Narra con voces de IA y descarga un video animado o la ficha del proyecto.", c: "bg-pop text-white" },
 ];
 
-const STYLE_ART = [
-  { bg: "bg-sun", d: "Contornos gruesos, color plano y puntos de trama.", tag: "¡POW!" },
-  { bg: "bg-white", d: "Blanco y negro con tramas y mucha expresión.", tag: "ドン" },
-  { bg: "bg-gradient-to-br from-pop to-grape", d: "Colores vivos y sombreado limpio de animación.", tag: "✦" },
-  { bg: "bg-gradient-to-br from-ink via-grape to-zap", d: "Neón, lluvia y ciudades que nunca apagan sus luces.", tag: "2077" },
-];
+// Cada estilo del catálogo debe tener una tarjeta visual. La tipificación detecta
+// estilos nuevos que aún no tengan presentación antes de llegar a producción.
+const STYLE_ART: Record<keyof typeof STYLES, { bg: string; d: string; tag: string }> = {
+  comic: { bg: "bg-sun", d: "Contornos gruesos, color plano y puntos de trama.", tag: "¡POW!" },
+  manga: { bg: "bg-white", d: "Blanco y negro con tramas y mucha expresión.", tag: "ドン" },
+  anime: { bg: "bg-gradient-to-br from-pop to-grape", d: "Colores vivos y sombreado limpio de animación.", tag: "✦" },
+  cyberpunk: { bg: "bg-gradient-to-br from-ink via-grape to-zap", d: "Neón, lluvia y ciudades que nunca apagan sus luces.", tag: "2077" },
+  acuarela: { bg: "bg-gradient-to-br from-sky-200 to-pink-200", d: "Pinceladas suaves, acuarela y textura de papel.", tag: "🎨" },
+  pixel: { bg: "bg-gradient-to-br from-emerald-300 to-violet-400", d: "Arte retro inspirado en videojuegos de 16 bits.", tag: "PIXEL" },
+  noir: { bg: "bg-gradient-to-br from-slate-500 to-black", d: "Tinta negra, misterio y sombras cinematográficas.", tag: "NOIR" },
+  _3d: { bg: "bg-gradient-to-br from-cyan-300 to-fuchsia-400", d: "Volumen, profundidad y escenarios renderizados.", tag: "3D" },
+};
 
 const MARQUEE = ["Guion con IA", "Imágenes con IA", "Voces con IA", "Video MP4", "Cómic", "Manga", "Anime", "Cyberpunk"];
 
@@ -92,16 +98,16 @@ export default function Landing() {
       </div>
 
       <section className="mt-16" aria-labelledby="estilos">
-        <h2 id="estilos" className="title-comic text-4xl">Cuatro estilos, un solo estudio</h2>
+        <h2 id="estilos" className="title-comic text-4xl">Ocho estilos, un solo estudio</h2>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {(Object.entries(STYLES) as [string, { name: string; prompt: string }][]).map(([k, s], i) => (
+          {(Object.entries(STYLES) as [keyof typeof STYLES, { name: string; prompt: string }][]).map(([k, s]) => (
             <div key={k} className="frame frame-hover overflow-hidden shadow-hard">
-              <div className={`halftone relative grid h-28 place-items-center border-b-[3px] border-ink ${STYLE_ART[i].bg}`}>
-                <span className="rounded-md border-[3px] border-ink bg-white px-3 py-1 font-display text-2xl shadow-hard-sm">{STYLE_ART[i].tag}</span>
+              <div className={`halftone relative grid h-28 place-items-center border-b-[3px] border-ink ${STYLE_ART[k].bg}`}>
+                <span className="rounded-md border-[3px] border-ink bg-white px-3 py-1 font-display text-2xl shadow-hard-sm">{STYLE_ART[k].tag}</span>
               </div>
               <div className="p-4">
                 <h3 className="text-lg font-extrabold">{s.name}</h3>
-                <p className="mt-1 text-sm text-ink/70">{STYLE_ART[i].d}</p>
+                <p className="mt-1 text-sm text-ink/70">{STYLE_ART[k].d}</p>
               </div>
             </div>
           ))}
