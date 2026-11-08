@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS "pdf_orders" (
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "pdf_orders_comic_user_idx" ON "pdf_orders" ("comic_id", "user_id");
+--> statement-breakpoint
+ALTER TABLE "pdf_orders" ENABLE ROW LEVEL SECURITY;

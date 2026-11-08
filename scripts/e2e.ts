@@ -71,6 +71,7 @@ try {
   r = await api("POST", "/api/auth/register", { name: "Tester", email, password: "password123" });
   assert.equal(r.status, 201); ok("registro");
   r = await api("GET", "/api/auth/me");
+  assert.equal(r.json.user.role, "user"); // el registro nunca crea administradores
   assert.equal(r.json.user.email, email); assert.equal(r.json.effectivePlan, "free"); ok("sesión persiste (me)");
   r = await api("POST", "/api/auth/register", { name: "Dup", email, password: "password123" });
   assert.equal(r.status, 409); ok("correo duplicado");
