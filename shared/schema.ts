@@ -31,7 +31,7 @@ export const comics = pgTable("comics", {
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (t) => [index("comics_user_idx").on(t.userId), index("comics_public_idx").on(t.isPublic, t.createdAt)]);
+}, (t) => [index("comics_user_idx").on(t.userId)]);
 
 export const panels = pgTable("panels", {
   id: serial("id").primaryKey(),
@@ -78,100 +78,6 @@ export const stripeEvents = pgTable("stripe_events", {
   processedAt: timestamp("processed_at").notNull().defaultNow(),
 });
 
-// Likes en cómics públicos
-export const comicLikes = pgTable("comic_likes", {
-  id: serial("id").primaryKey(),
-  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [uniqueIndex("comic_likes_unique").on(t.comicId, t.userId)]);
-
-// Comentarios en cómics públicos
-export const comicComments = pgTable("comic_comments", {
-  id: serial("id").primaryKey(),
-  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  content: text("content").notNull().default(""),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [index("comic_comments_comic_idx").on(t.comicId)]);
-
-// Seguidores entre usuarios
-export const userFollowers = pgTable("user_followers", {
-  id: serial("id").primaryKey(),
-  followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [uniqueIndex("user_followers_unique").on(t.followerId, t.followingId)]);
-
-// Créditos IA sueltos (pay-as-you-go, no suscripción)
-export const userCredits = pgTable("user_credits", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  balance: integer("balance").notNull().default(0),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (t) => [index("user_credits_user_idx").on(t.userId)]);
-
-// Historial de movimientos de crédito
-export const creditTransactions = pgTable("credit_transactions", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // purchase | refund | usage
-  amount: integer("amount").notNull(),
-  reference: text("reference"), // stripe payment id, render id, etc.
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [index("credit_transactions_user_idx").on(t.userId)]);
-
-// Tokens de push para notificaciones móviles
-export const pushTokens = pgTable("push_tokens", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  platform: text("platform").notNull(), // ios | android | web
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [index("push_tokens_user_idx").on(t.userId)]);
-
-// Notificaciones del usuario
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // like | comment | follow | mention | system
-  title: text("title").notNull(),
-  body: text("body").notNull(),
-  data: jsonb("data").$type<Record<string, any>>().notNull().default({}),
-  read: boolean("read").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)]);
-
-// Códigos promocionales y tarjetas de regalo
-export const promoCodes = pgTable("promo_codes", {
-  id: serial("id").primaryKey(),
-  code: varchar("code").notNull().unique(),
-  type: text("type").notNull(), // discount | credits | free_month
-  value: integer("value").notNull(), // porcentaje o monto o créditos
-  maxUses: integer("max_uses").notNull().default(1),
-  currentUses: integer("current_uses").notNull().default(0),
-  expiresAt: timestamp("expires_at"),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Uso de códigos promocionales por usuario
-export const promoCodeUses = pgTable("promo_code_uses", {
-  id: serial("id").primaryKey(),
-  promoCodeId: integer("promo_code_id").notNull().references(() => promoCodes.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  usedAt: timestamp("used_at").notNull().defaultNow(),
-}, (t) => [uniqueIndex("promo_code_uses_unique").on(t.promoCodeId, t.userId)]);
-
-// Códigos de referidos
-export const referrals = pgTable("referrals", {
-  id: serial("id").primaryKey(),
-  code: varchar("code").notNull().unique(),
-  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  referredUserId: varchar("referred_user_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (t) => [index("referrals_owner_idx").on(t.ownerId)]);
-
 // Tokens de recuperación de contraseña (solo se guarda el hash del token)
 export const passwordResets = pgTable("password_resets", {
   id: serial("id").primaryKey(),
@@ -192,3 +98,29 @@ export interface ComicSettings {
 export type User = typeof users.$inferSelect;
 export type Comic = typeof comics.$inferSelect;
 export type Panel = typeof panels.$inferSelect;
+
+/** Las interacciones se guardan con claves únicas para impedir duplicados. */
+export const comicLikes = pgTable("comic_likes", {
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
+}, (t) => [uniqueIndex("comic_likes_unique").on(t.userId, t.comicId), index("comic_likes_comic_idx").on(t.comicId)]);
+
+export const comicComments = pgTable("comic_comments", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  comicId: integer("comic_id").notNull().references(() => comics.id, { onDelete: "cascade" }),
+  text: varchar("text", { length: 1000 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("comic_comments_comic_idx").on(t.comicId)]);
+
+export const follows = pgTable("follows", {
+  followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+}, (t) => [uniqueIndex("follows_unique").on(t.followerId, t.followingId), index("follows_following_idx").on(t.followingId)]);
+
+export const referrals = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  referrerId: varchar("referrer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  referredId: varchar("referred_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("referrals_referrer_idx").on(t.referrerId)]);

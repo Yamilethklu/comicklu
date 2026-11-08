@@ -71,10 +71,6 @@ export const STYLES = {
   manga: { name: "Manga", prompt: "black and white manga illustration, screentone shading, expressive linework, dramatic panel composition" },
   anime: { name: "Anime", prompt: "anime key visual, cel shading, vibrant colors, clean linework, cinematic lighting" },
   cyberpunk: { name: "Cyberpunk", prompt: "cyberpunk comic art, neon magenta and cyan lighting, rain-soaked futuristic city, high contrast, gritty ink lines" },
-  acuarela: { name: "Acuarela", prompt: "watercolor comic illustration, soft wet-on-wet edges, pigment blooms, paper texture, pastel colors, gentle brushstrokes" },
-  pixel: { name: "Pixel Art", prompt: "pixel art comic, 16-bit retro video game style, limited color palette, dithering, blocky pixels, crisp edges" },
-  noir: { name: "Noir", prompt: "black and white noir comic, high contrast chiaroscuro, deep shadows, dramatic lighting, 1940s detective style, ink wash" },
-  _3d: { name: "3D Render", prompt: "3D rendered comic style, octane render, cinematic lighting, volumetric fog, depth of field, polished materials, vibrant render" },
 } as const;
 export type StyleId = keyof typeof STYLES;
 

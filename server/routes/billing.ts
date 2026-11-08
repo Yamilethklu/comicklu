@@ -8,7 +8,6 @@ import { requireAuth, publicUser } from "../auth";
 import { env, stripeEnabled, checkoutEnabled } from "../env";
 import { getStripe, priceFor, ensureCustomer, applySubscription, syncCustomer } from "../stripe";
 import { refreshUser } from "../usage";
-import { addCredits } from "./credits";
 
 export const billingRouter = Router();
 
@@ -94,9 +93,6 @@ export async function stripeWebhook(req: Request, res: Response) {
         if (s.mode === "subscription" && s.subscription) {
           const subId = typeof s.subscription === "string" ? s.subscription : s.subscription.id;
           await applySubscription(await getStripe().subscriptions.retrieve(subId));
-        }
-        if (s.mode === "payment" && s.metadata?.credits) {
-          await addCredits(typeof s.client_reference_id === "string" ? s.client_reference_id : s.metadata.userId, Number(s.metadata.credits), s.id);
         }
         break;
       }
