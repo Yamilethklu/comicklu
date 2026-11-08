@@ -14,7 +14,7 @@
       "destination": "https://comicklu-1.onrender.com/media/:path*"
     },
     {
-      "source": "/((?!assets/|favicon\\.svg).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
