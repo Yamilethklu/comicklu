@@ -10,7 +10,7 @@ export function Reader({ comic }: { comic: ComicData }) {
   return (
     <div>
       <div className="frame bg-white p-5 shadow-hard">
-        <h2 className="font-display text-4xl tracking-wide">{comic.title || "Sin título"}</h2>
+        <h2 className="title-comic text-4xl">{comic.title || "Sin título"}</h2>
         <p className="mt-1 text-sm font-bold text-pop">{STYLES[comic.style].name}{comic.settings.tone ? ` · ${comic.settings.tone}` : ""}</p>
         {comic.synopsis && <p className="mt-2 max-w-2xl text-sm text-ink/80">{comic.synopsis}</p>}
       </div>
@@ -19,10 +19,11 @@ export function Reader({ comic }: { comic: ComicData }) {
       ) : (
         <div className={`mt-5 grid gap-4 ${horizontal ? "sm:grid-cols-2 lg:grid-cols-3" : "mx-auto max-w-xl grid-cols-1"}`}>
           {filled.map((p, i) => (
-            <figure key={i} className="frame relative overflow-hidden bg-ink shadow-hard">
+            <figure key={i} className="frame frame-hover relative overflow-hidden bg-ink shadow-hard">
+              <span className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-ink bg-white font-display text-sm" aria-hidden>{i + 1}</span>
               <div className="relative aspect-video bg-white">
                 {p.imageUrl
-                  ? <img src={mediaUrl(p.imageUrl)} alt={p.caption || p.prompt || `Viñeta ${i + 1}`} className="h-full w-full object-cover" />
+                  ? <img loading="lazy" src={mediaUrl(p.imageUrl)} alt={p.prompt || `Viñeta ${i + 1}`} className="h-full w-full object-cover" />
                   : <div className="halftone grid h-full place-items-center bg-sun/40 text-sm font-bold">Sin imagen</div>}
                 {p.caption && (
                   <figcaption className="absolute left-0 top-0 max-w-[85%] border-b-[3px] border-r-[3px] border-ink bg-sun px-3 py-1.5 text-sm font-bold">
@@ -30,7 +31,7 @@ export function Reader({ comic }: { comic: ComicData }) {
                   </figcaption>
                 )}
                 {p.dialogue && (
-                  <div className="absolute bottom-3 right-3 max-w-[75%] rounded-[1.4rem] border-[3px] border-ink bg-white px-4 py-2 text-sm font-semibold shadow-hard-sm">
+                  <div className="bubble bubble-r absolute bottom-5 right-3 max-w-[75%] px-4 py-2 text-sm font-semibold shadow-hard-sm">
                     {p.dialogue}
                   </div>
                 )}

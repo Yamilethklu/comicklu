@@ -53,7 +53,8 @@ export function PlanCards({ compact }: { compact?: boolean }) {
           const price = interval === "year" && yearlyAvailable ? p.priceYear : p.priceMonth;
           const isCurrent = user ? current === p.id : false;
           return (
-            <div key={p.id} className={`frame flex flex-col p-6 ${featured ? "bg-sun shadow-hard md:-translate-y-2" : ""}`}>
+            <div key={p.id} className={`frame relative flex flex-col p-6 transition duration-200 hover:-translate-y-1 ${featured ? "bg-sun shadow-hard-lg md:-translate-y-3" : "shadow-hard"}`}>
+              {featured && <span className="absolute -right-3 -top-4 rotate-6 rounded-md border-[3px] border-ink bg-pop px-3 py-1 font-display text-lg tracking-wide text-white shadow-hard-sm">¡Más popular!</span>}
               <h3 className="font-display text-3xl tracking-wide">{p.name}</h3>
               <p className="text-sm text-ink/70">{p.tagline}</p>
               <p className="mt-4">
@@ -93,7 +94,7 @@ export default function Pricing() {
   const cancelled = new URLSearchParams(window.location.search).get("checkout") === "cancelled";
   return (
     <Page>
-      <h1 className="font-display text-5xl tracking-wide">Elige tu plan</h1>
+      <h1 className="title-comic text-5xl">Elige tu plan</h1>
       <p className="mt-2 max-w-xl text-ink/80">Cambia o cancela cuando quieras desde tu cuenta. Si cancelas, conservas tus cómics y vuelves al plan Gratis al terminar el periodo pagado.</p>
       {cancelled && <p className="mt-4 rounded-lg border-2 border-ink bg-sun/40 px-3 py-2 text-sm font-semibold">El pago se canceló y no se hizo ningún cobro.</p>}
       <div className="mt-8"><PlanCards /></div>

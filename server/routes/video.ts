@@ -12,7 +12,6 @@ videoRouter.use(requireAuth);
 
 // Cola simple en memoria: un render a la vez para no saturar CPU.
 let chain: Promise<unknown> = Promise.resolve();
-const pending = new Set<number>();
 
 async function processRender(renderId: number, comicId: number, userId: string, refund: () => Promise<void>) {
   try {
@@ -25,8 +24,6 @@ async function processRender(renderId: number, comicId: number, userId: string, 
     await refund().catch(() => {});
     console.error("[video] render", renderId, (e as Error).message);
     await db.update(renders).set({ status: "failed", error: (e as Error).message.slice(0, 300) }).where(eq(renders.id, renderId));
-  } finally {
-    pending.delete(renderId);
   }
 }
 
@@ -38,8 +35,10 @@ videoRouter.post("/comics/:id/video", async (req, res) => {
   if (!ps.some((p) => p.imageUrl)) throw httpError(400, "Agrega al menos una viñeta con imagen para crear el video.");
 
   const refund = await consume(req.user!, "video");
-  const [r] = await db.insert(renders).values({ userId: req.user!.id, comicId }).returning();
-  pending.add(r.id);
+  const [r] = await db.insert(renders).values({ userId: req.user!.id, comicId }).returning().catch(async (e) => {
+    await refund(); // si no se pudo registrar el render, no se cobra el video
+    throw e;
+  });
   chain = chain.then(() => processRender(r.id, comicId, req.user!.id, refund));
   res.status(202).json(r);
 });

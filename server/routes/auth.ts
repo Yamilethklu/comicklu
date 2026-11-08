@@ -50,7 +50,11 @@ authRouter.post("/register", limiter, async (req, res) => {
     name: body.name,
     passwordHash: await hashPassword(body.password),
     role: env.adminEmails.includes(body.email) ? "admin" : "user",
-  }).returning();
+  }).returning().catch((e) => {
+    if (e?.code === "23505" || e?.cause?.code === "23505") return [] as never[]; // correo duplicado (carrera)
+    throw e;
+  });
+  if (!user) return res.status(409).json({ message: "Ya existe una cuenta con ese correo" });
   await startSession(req, user.id);
   res.status(201).json({ user: publicUser(user), ...tokenFor(req) });
 });

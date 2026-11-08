@@ -13,7 +13,12 @@ import { STYLES } from "@shared/plans";
 
 export const aiRouter = Router();
 aiRouter.use(requireAuth);
-aiRouter.use(rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: "Vas muy rápido. Espera un minuto." } }));
+aiRouter.use(rateLimit({
+  windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id ?? "anon", // por usuario, no por IP (redes compartidas / móviles)
+  validate: { keyGeneratorIpFallback: false },
+  message: { message: "Vas muy rápido. Espera un minuto." },
+}));
 
 function requireAi() {
   if (!aiEnabled()) throw httpError(503, "La IA no está activada en este servidor.");
