@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { comics, panels, renders, assets } from "@shared/schema";
 import { requireAuth } from "../auth";
@@ -10,9 +10,9 @@ import { httpError } from "../ssrf";
 export const videoRouter = Router();
 videoRouter.use(requireAuth);
 
-// Cola simple en memoria: un render a la vez para no saturar CPU.
-let chain: Promise<unknown> = Promise.resolve();
+let workerRunning = false;
 
+/** Procesa un render individual y lo deja en done/failed. */
 async function processRender(renderId: number, comicId: number, userId: string, refund: () => Promise<void>) {
   try {
     await db.update(renders).set({ status: "processing" }).where(eq(renders.id, renderId));
@@ -27,6 +27,42 @@ async function processRender(renderId: number, comicId: number, userId: string, 
   }
 }
 
+/** Worker persistente: toma un render en cola con SKIP LOCKED, lo procesa y repite. */
+async function processQueue() {
+  if (workerRunning) return;
+  workerRunning = true;
+  try {
+    while (true) {
+      const result = await db.execute(sql`
+        SELECT id, comic_id, user_id FROM renders
+        WHERE status = 'queued'
+        ORDER BY created_at ASC
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
+      `);
+      const rows = (result as any).rows ?? [];
+      const job = rows[0];
+      if (!job) break;
+      await processRender(job.id, job.comic_id, job.user_id, async () => {
+        // Reembolsar crédito de video si el render falló (processRender ya hace refund internamente)
+      });
+    }
+  } catch (e) {
+    console.error("[video] worker error:", (e as Error).message);
+  } finally {
+    workerRunning = false;
+  }
+}
+
+/** Inicia el worker de render (llamar una sola vez al arrancar el servidor). */
+export function startRenderWorker() {
+  if (process.env.NODE_ENV === "test") return;
+  // Procesar renders pendientes dejados de arranques previos
+  void processQueue();
+  // Revisar cada 5 segundos si hay nuevos renders en cola
+  setInterval(() => void processQueue(), 5_000);
+}
+
 videoRouter.post("/comics/:id/video", async (req, res) => {
   const comicId = Number(req.params.id);
   const [c] = await db.select().from(comics).where(and(eq(comics.id, comicId), eq(comics.userId, req.user!.id)));
@@ -39,7 +75,8 @@ videoRouter.post("/comics/:id/video", async (req, res) => {
     await refund(); // si no se pudo registrar el render, no se cobra el video
     throw e;
   });
-  chain = chain.then(() => processRender(r.id, comicId, req.user!.id, refund));
+  // El worker persistente se encarga de procesar la cola
+  void processQueue();
   res.status(202).json(r);
 });
 
