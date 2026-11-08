@@ -205,3 +205,15 @@ export const pdfOrders = pgTable("pdf_orders", {
   amountCents: integer("amount_cents").notNull(),
   paidAt: timestamp("paid_at").notNull().defaultNow(),
 }, (t) => [index("pdf_orders_comic_user_idx").on(t.comicId, t.userId)]);
+
+/** Opiniones sobre ComicKlu, moderadas antes de aparecer públicamente. */
+export const siteFeedback = pgTable("site_feedback", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  comment: varchar("comment", { length: 1500 }).notNull(),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  adminReply: varchar("admin_reply", { length: 1000 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [index("site_feedback_status_idx").on(t.status, t.createdAt), index("site_feedback_user_idx").on(t.userId)]);

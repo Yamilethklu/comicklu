@@ -23,6 +23,7 @@ import { promoRouter } from "./routes/promo";
 import { socialRouter } from "./routes/social";
 import { notificationsRouter, createNotification } from "./routes/notifications";
 import { creditsRouter } from "./routes/credits";
+import { adminRouter, feedbackRouter } from "./routes/feedback";
 import { uploadRoot, ensureUploadDir } from "./files";
 import { log, requestLogger } from "./logger";
 import { aiEnabled, stripeEnabled, mailEnabled } from "./env";
@@ -179,6 +180,8 @@ export async function createApp(options: { serverless?: boolean } = {}) {
   app.use("/api/ai", aiRouter);
   app.use("/api/billing", billingRouter);
   app.use("/api/social", socialRouter);
+  app.use("/api/feedback", feedbackRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/billing/credits", creditsRouter);
   app.use("/api/promo", promoRouter);

@@ -78,7 +78,7 @@ export default function Account() {
       qc.clear(); nav("/");
     } catch (err) { setDelError(errMsg(err)); }
   };
-  const liveSub = !!user.subscriptionStatus && ["active", "trialing", "past_due"].includes(user.subscriptionStatus);
+  const liveSub = me.effectivePlan !== "free";
 
   return (
     <Page>
@@ -89,6 +89,7 @@ export default function Account() {
           <button className="ml-2 underline" onClick={() => refetch()}>Actualizar</button>
         </p>
       )}
+      {user.hasBilling && me.effectivePlan === "free" && <p role="status" className="mt-4 rounded-lg border-2 border-ink bg-sun/40 p-3 text-sm font-semibold">Tu plan de pago no está vigente o tiene un cobro pendiente. Puedes seguir entrando a tu biblioteca en modo Gratis y recuperar el acceso Premium o Pro desde «Administrar suscripción».</p>}
       <div className="mt-4 flex flex-wrap gap-3">
         <Link href="/dashboard" className="btn-sun">Ir a mi estudio privado</Link>
         <Link href="/precios" className="btn-ghost">Comparar planes</Link>
