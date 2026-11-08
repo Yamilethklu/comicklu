@@ -49,7 +49,8 @@ authRouter.post("/register", limiter, async (req, res) => {
     email: body.email,
     name: body.name,
     passwordHash: await hashPassword(body.password),
-    role: env.adminEmails.includes(body.email) ? "admin" : "user",
+    // Nunca otorgar privilegios administrativos durante un registro público.
+    role: "user",
   }).returning().catch((e) => {
     if (e?.code === "23505" || e?.cause?.code === "23505") return [] as never[]; // correo duplicado (carrera)
     throw e;
@@ -173,6 +174,8 @@ configRouter.get("/", (_req, res) => {
     plans: PLANS,
     stripe: checkoutEnabled(),
     ai: aiEnabled(),
+    referenceImages: !!env.openaiKey,
+    video: !process.env.VERCEL,
     mail: mailEnabled(),
     yearly: {
       pro: !!env.prices.pro.year,

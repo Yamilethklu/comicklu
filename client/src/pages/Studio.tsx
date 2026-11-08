@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen, Clapperboard, Download, Eye, Film, Layers, Loader2
 import { api, errMsg, ApiError } from "@/lib/api";
 import { isNative, mediaUrl, openExternal } from "@/lib/native";
 import { Share } from "@capacitor/share";
+import { buildComicPdf, downloadComicPdf } from "@/lib/pdf";
 import { useConfig, useMe } from "@/lib/hooks";
 import { Nav } from "@/components/Layout";
 import { PanelEditor, type ClientPanel } from "@/components/PanelEditor";
@@ -40,10 +41,17 @@ export default function Studio({ id }: { id: number }) {
   const [notice, setNotice] = useState<{ msg: string; upgrade: boolean } | null>(null);
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [storyBusy, setStoryBusy] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchProgress, setBatchProgress] = useState("");
   const [idea, setIdea] = useState("");
   const [panelCount, setPanelCount] = useState(6);
   const [renders, setRenders] = useState<RenderRow[]>([]);
   const [videoBusy, setVideoBusy] = useState(false);
+  const [referenceBusy, setReferenceBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfPaid, setPdfPaid] = useState(false);
+  const [pdfPrice, setPdfPrice] = useState<number | null>(null);
+  const [pdfAvailable, setPdfAvailable] = useState(false);
 
   const latest = useRef<StudioComic | null>(null);
   latest.current = comic;
@@ -89,6 +97,18 @@ export default function Studio({ id }: { id: number }) {
     return () => window.removeEventListener("beforeunload", h);
   }, []);
 
+  // El derecho a descargar PDF lo autoriza Stripe desde el servidor.
+  useEffect(() => {
+    api<{ available: boolean; priceCents: number | null }>("GET", "/api/billing/pdf/config")
+      .then(r => { setPdfPrice(r.priceCents); setPdfAvailable(r.available); }).catch(() => {});
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    const target = `/api/billing/pdf/status/${id}` + (sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "");
+    api<{ paid: boolean }>("GET", target).then(r => {
+      setPdfPaid(r.paid);
+      if (sessionId) window.history.replaceState(null, "", window.location.pathname);
+    }).catch(e => setNotice({ msg: "No se pudo confirmar la compra de PDF: " + errMsg(e), upgrade: false }));
+  }, [id]);
+
   const loadRenders = useCallback(() => api<RenderRow[]>("GET", `/api/comics/${id}/renders`).then(setRenders).catch(() => {}), [id]);
   useEffect(() => { if (tab === "exportar") loadRenders(); }, [tab, loadRenders]);
   const rendering = renders.some((r) => r.status === "queued" || r.status === "processing");
@@ -118,13 +138,42 @@ export default function Studio({ id }: { id: number }) {
   const genImage = async (p: ClientPanel) => {
     setNotice(null); setBusyFor(p.uid, "image");
     try {
+      await save();
+      if (dirty.current) throw new Error("Guarda los cambios antes de generar la imagen.");
       const { url } = await api<{ url: string }>("POST", "/api/ai/image", {
         prompt: p.prompt, style: comic.style, palette: comic.settings.palette || undefined,
-        orientation: "landscape",
+        orientation: "landscape", comicId: id,
       });
       setPanel(p.uid, { imageUrl: url }); refreshMe();
     } catch (e) { fail(e); } finally { setBusyFor(p.uid, null); }
   };
+
+  // Una acción crea las imágenes de toda la historia, panel a panel.
+  // Cada llamada consume la cuota de su plan mediante el backend, no el cliente.
+  const generateAllImages = async () => {
+    setBatchBusy(true); setNotice(null); setBatchProgress("");
+    try {
+      await save();
+      if (dirty.current) throw new Error("No se pudo guardar la historia antes de generar.");
+      const missing = comic.panels.filter(p => !p.imageUrl && p.prompt.trim().length >= 3);
+      if (!missing.length) throw new Error("Primero genera el guion; las viñetas deben tener una descripción.");
+      for (let i = 0; i < missing.length; i++) {
+        const panel = missing[i];
+        setBatchProgress(`Generando imagen ${i + 1} de ${missing.length}…`);
+        const result = await api<{ url: string }>("POST", "/api/ai/image", {
+          prompt: panel.prompt, style: comic.style,
+          palette: comic.settings.palette || undefined,
+          orientation: "landscape", comicId: id,
+        });
+        setPanel(panel.uid, { imageUrl: result.url });
+        refreshMe();
+      }
+      setBatchProgress(`¡Listo! Se generaron ${missing.length} imágenes.`);
+      setTab("vista");
+    } catch (e) { fail(e); }
+    finally { setBatchBusy(false); }
+  };
+
   const genVoice = async (p: ClientPanel, voice: string) => {
     setNotice(null); setBusyFor(p.uid, "voice");
     try {
@@ -138,8 +187,10 @@ export default function Studio({ id }: { id: number }) {
     if (hasContent && !confirm("El guion generado reemplazará tus viñetas actuales. ¿Continuar?")) return;
     setNotice(null); setStoryBusy(true);
     try {
+      await save();
+      if (dirty.current) throw new Error("Guarda los cambios antes de generar el guion.");
       const r = await api<{ title: string; synopsis: string; panels: { caption: string; dialogue: string; prompt: string }[] }>("POST", "/api/ai/story", {
-        idea, style: comic.style, tone: comic.settings.tone || undefined, language: comic.settings.language || "español", panelCount,
+        idea, style: comic.style, tone: comic.settings.tone || undefined, language: comic.settings.language || "español", panelCount, comicId: id,
       });
       edit((c) => ({
         ...c,
@@ -149,6 +200,42 @@ export default function Studio({ id }: { id: number }) {
       }));
       refreshMe(); setTab("vinetas");
     } catch (e) { fail(e); } finally { setStoryBusy(false); }
+  };
+
+
+  const uploadCharacter = async (file?: File) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 3 * 1024 * 1024) {
+      return setNotice({ msg: "Utiliza JPG, PNG o WEBP de máximo 3 MB.", upgrade: false });
+    }
+    setReferenceBusy(true); setNotice(null);
+    try {
+      const form = new FormData(); form.append("file", file);
+      const { url } = await api<{ url: string }>("POST", "/api/uploads", form);
+      edit(c => ({ ...c, settings: { ...c.settings, characterReferenceUrl: url } }));
+    } catch (err) { fail(err); }
+    finally { setReferenceBusy(false); }
+  };
+
+  const handlePdf = async () => {
+    setPdfBusy(true); setNotice(null);
+    try {
+      await save();
+      if (dirty.current) throw new Error("Guarda tu historieta antes de exportarla.");
+      if (!pdfPaid) {
+        const result = await api<{ url?: string; paid?: boolean }>("POST", "/api/billing/pdf/checkout", { comicId: id });
+        if (!result.paid) {
+          if (!result.url) throw new Error("Stripe no devolvió el enlace de pago.");
+          await openExternal(result.url);
+          return;
+        }
+        setPdfPaid(true);
+      }
+      const full = await api<ComicData>("GET", `/api/comics/${id}`);
+      const pdf = await buildComicPdf(full);
+      downloadComicPdf(pdf, full.title);
+    } catch (err) { fail(err); }
+    finally { setPdfBusy(false); }
   };
 
   const exportJson = async () => {
@@ -236,8 +323,15 @@ export default function Studio({ id }: { id: number }) {
             <div>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-ink/70">{comic.panels.length} de {maxPanels} viñetas · imágenes con IA: {quota("image")} · voces: {quota("voice")}</p>
-                <button className="btn-pop" onClick={addPanel}><Plus className="h-4 w-4" />Agregar viñeta</button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className="btn-sun" onClick={generateAllImages} disabled={batchBusy || !cfg.ai || comic.panels.length === 0}>
+                    {batchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Generar todas las imágenes
+                  </button>
+                  <button className="btn-pop" onClick={addPanel}><Plus className="h-4 w-4" />Agregar viñeta</button>
+                </div>
               </div>
+              {batchProgress && <p className="mb-3 text-sm font-bold" role="status">{batchProgress}</p>}
               {comic.panels.length === 0 ? (
                 <div className="frame p-10 text-center">
                   <p className="font-display text-3xl tracking-wide">Aún no hay viñetas</p>
@@ -274,6 +368,35 @@ export default function Studio({ id }: { id: number }) {
                   ))}
                 </div>
               </section>
+              <section className="frame p-5" aria-labelledby="h-character">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 id="h-character" className="text-xl font-extrabold">Personaje de referencia</h2>
+                    <p className="mt-1 text-sm text-ink/70">Premium: sube el personaje para mantener su apariencia en todas las viñetas generadas. Hasta 20 imágenes de referencia por mes.</p>
+                  </div>
+                  {me.effectivePlan === "premium" ? <span className="rounded bg-sun px-2 py-1 text-xs font-bold">PREMIUM</span> : <Link href="/precios" className="btn-sun text-sm">Mejorar a Premium</Link>}
+                </div>
+                {me.effectivePlan === "premium" && <>
+                  {comic.settings.characterReferenceUrl && (
+                    <img src={mediaUrl(comic.settings.characterReferenceUrl)} alt="Referencia de personaje" className="mt-4 max-h-64 w-full rounded-lg border-2 border-ink object-contain" />
+                  )}
+                  <label className="label mt-4" htmlFor="character-file">Imagen del personaje (JPG, PNG o WEBP · máximo 3 MB)</label>
+                  <input id="character-file" type="file" accept="image/png,image/jpeg,image/webp" className="field" disabled={referenceBusy}
+                    onChange={e => { void uploadCharacter(e.target.files?.[0]); e.target.value = ""; }} />
+                  {referenceBusy && <p className="text-sm">Guardando referencia…</p>}
+                  <label className="label mt-4" htmlFor="character-name">Nombre del personaje</label>
+                  <input id="character-name" className="field" maxLength={80} value={comic.settings.characterName ?? ""}
+                    onChange={e => edit(c => ({ ...c, settings: { ...c.settings, characterName: e.target.value } }))} placeholder="Ej. Luna" />
+                  <label className="label mt-4" htmlFor="character-desc">Rasgos que debe conservar la IA</label>
+                  <textarea id="character-desc" className="field min-h-24" maxLength={600}
+                    value={comic.settings.characterDescription ?? ""}
+                    onChange={e => edit(c => ({ ...c, settings: { ...c.settings, characterDescription: e.target.value } }))}
+                    placeholder="Cabello, ropa, accesorios, expresiones características..." />
+                  {comic.settings.characterReferenceUrl && <button className="btn-ghost mt-3" onClick={() =>
+                    edit(c => ({ ...c, settings: { ...c.settings, characterReferenceUrl: undefined } }))}>Quitar referencia</button>}
+                  {!cfg.referenceImages && <p className="mt-3 text-sm text-ink/70">La generación por referencia está pendiente de activar con un proveedor de imágenes compatible.</p>}
+                </>}
+              </section>
               <section className="frame space-y-4 p-5" aria-labelledby="h-set">
                 <h2 id="h-set" className="text-xl font-extrabold">Ajustes</h2>
                 <div>
@@ -308,12 +431,25 @@ export default function Studio({ id }: { id: number }) {
                 <p className="mt-1 text-sm text-ink/70">Descarga el título, la historia, el estilo y todas las viñetas con sus textos.</p>
                 <button className="btn-sun mt-4" onClick={exportJson}><Download className="h-4 w-4" />Descargar JSON</button>
               </section>
+              <section className="frame p-5 md:col-span-2" aria-labelledby="h-pdf">
+                <h2 id="h-pdf" className="text-xl font-extrabold">Descarga de historieta completa en PDF</h2>
+                <p className="mt-2 text-sm text-ink/75">Puedes leer todas las viñetas en «Vista previa» sin pagar. La descarga de un PDF completo se compra una sola vez por historieta; después podrás repetir la descarga sin otro cobro.</p>
+                <p className="mt-2 text-sm font-semibold">{pdfPaid ? "Descarga desbloqueada" :
+                  pdfAvailable && pdfPrice !== null ? `Precio por historieta: US${(pdfPrice / 100).toFixed(2)}` :
+                  "Las descargas PDF de pago aún no están habilitadas."}</p>
+                <button className="btn-pop mt-4" disabled={pdfBusy || (!pdfPaid && !pdfAvailable) || comic.panels.length === 0}
+                  onClick={handlePdf}>
+                  {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {pdfPaid ? "Descargar PDF completo" : "Comprar descarga PDF"}
+                </button>
+                <p className="mt-2 text-xs text-ink/60">La generación de PDF no consume tus créditos ni el cupo mensual de imágenes. No incluye el archivo de video.</p>
+              </section>
               <section className="frame p-5" aria-labelledby="h-video">
                 <h2 id="h-video" className="text-xl font-extrabold">Video animado</h2>
-                {limits.monthly.video === 0 ? (
+                {limits.monthly.video === 0 || !cfg.video ? (
                   <>
-                    <p className="mt-1 text-sm text-ink/70">Convierte tus viñetas en un video MP4 con movimiento de cámara, subtítulos y tu narración. Disponible desde el plan Pro.</p>
-                    <Link href="/precios" className="btn-pop mt-4">Mejorar a Pro</Link>
+                    <p className="mt-1 text-sm text-ink/70">La exportación de video está en preparación para Vercel. Mientras tanto puedes leer la historieta completa y descargar el PDF mediante compra individual.</p>
+                    {cfg.video && <Link href="/precios" className="btn-pop mt-4">Mejorar a Pro</Link>}
                   </>
                 ) : (
                   <>

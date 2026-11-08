@@ -11,9 +11,9 @@ import { Menu, X, Plus } from "lucide-react";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <Link href="/" className={`group inline-flex items-center gap-2 ${className}`} aria-label="Panelforge, inicio">
-      <span className="grid h-9 w-9 -rotate-6 place-items-center rounded-md border-[3px] border-ink bg-sun font-display text-xl leading-none shadow-hard-sm transition group-hover:rotate-6 group-hover:bg-pop group-hover:text-white">P</span>
-      <span className="font-display text-2xl tracking-wide">Panelforge</span>
+    <Link href="/" className={`group inline-flex items-center gap-2 ${className}`} aria-label="ComicKlu, inicio">
+      <span className="grid h-9 w-9 -rotate-6 place-items-center rounded-md border-[3px] border-ink bg-sun font-display text-xl leading-none shadow-hard-sm transition group-hover:rotate-6 group-hover:bg-pop group-hover:text-white">C</span>
+      <span className="font-display text-2xl tracking-wide">ComicKlu</span>
     </Link>
   );
 }
@@ -62,11 +62,16 @@ export function Nav() {
             </button>
             <nav className="hidden md:flex flex-wrap items-center gap-1 text-sm font-bold sm:gap-2" aria-label="Principal">
               <NavLink href="/explorar">Explorar</NavLink>
-              <NavLink href="/precios">Precios</NavLink>
+              <NavLink href="/opiniones">Opiniones</NavLink>
+              <NavLink href="/explorar">Explorar</NavLink>
+            <NavLink href="/opiniones">Opiniones</NavLink>
+            <NavLink href="/precios">Precios</NavLink>
               {user ? (
                 <>
                   <NavLink href="/dashboard">Mi biblioteca</NavLink>
                   <NavLink href="/account">Cuenta</NavLink>
+                {user.role === "admin" && <NavLink href="/admin">Administración</NavLink>}
+                  {user.role === "admin" && <NavLink href="/admin">Administración</NavLink>}
                   <button onClick={logout} className="btn-ghost">Salir</button>
                 </>
               ) : (
@@ -121,7 +126,7 @@ export function Footer() {
     <footer className="mt-20 border-t-[3px] border-ink pt-6 pb-4 text-sm text-ink/70">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Logo />
-        <p>© {new Date().getFullYear()} Panelforge. Los pagos se procesan con Stripe; nunca vemos los datos de tu tarjeta.</p>
+        <p>© {new Date().getFullYear()} ComicKlu. Los pagos se procesan con Stripe; nunca vemos los datos de tu tarjeta.</p>
       </div>
     </footer>
   );

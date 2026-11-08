@@ -36,7 +36,7 @@ export async function ensureCustomer(user: User): Promise<string> {
   return customer.id;
 }
 
-const ACTIVE = new Set(["active", "trialing", "past_due"]);
+const ACTIVE = new Set(["active", "trialing"]);
 
 /** Refleja el estado de una suscripción de Stripe en la tabla de usuarios. */
 export async function applySubscription(sub: Stripe.Subscription): Promise<void> {

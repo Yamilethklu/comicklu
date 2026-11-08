@@ -78,7 +78,7 @@ export default function Landing() {
             Tu historia,<br /><span className="hl">viñeta</span> por <span className="text-pop">viñeta</span>
           </h1>
           <p className="mt-5 max-w-lg text-lg text-ink/80">
-            Panelforge es un estudio para crear cómics, manga, anime y cyberpunk. Escribe el guion, genera las imágenes con IA,
+            ComicKlu es un estudio para crear cómics, manga, anime y cyberpunk. Escribe el guion, genera las imágenes con IA,
             ponles voz y llévalas a video.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">

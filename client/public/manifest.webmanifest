@@ -1,7 +1,7 @@
 {
-  "name": "Panelforge — Estudio de cómics con IA",
-  "short_name": "Panelforge",
-  "description": "Crea cómics, manga y anime con IA. Guion, imágenes, voces y video MP4 animado.",
+  "name": "ComicKlu — Estudio de cómics con IA",
+  "short_name": "ComicKlu",
+  "description": "Crea cómics, manga y anime con IA. Guiones, ilustraciones y personajes personalizados.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#eef1f8",

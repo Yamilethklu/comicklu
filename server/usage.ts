@@ -8,8 +8,12 @@ export const currentMonth = () => new Date().toISOString().slice(0, 7);
 /** Plan efectivo: si la suscripción no está vigente, se aplica Gratis. */
 export function effectivePlan(u: User): PlanId {
   if (u.plan === "free") return "free";
-  const ok = u.subscriptionStatus === "active" || u.subscriptionStatus === "trialing" || u.subscriptionStatus === "past_due";
-  return ok ? (u.plan as PlanId) : "free";
+  // Nunca autorizar pago pendiente, estado desconocido o un periodo vencido.
+  // El usuario conserva la sesión y sus cómics en modo Gratis.
+  const active = u.subscriptionStatus === "active" || u.subscriptionStatus === "trialing";
+  const validPeriod = !!u.currentPeriodEnd && u.currentPeriodEnd.getTime() > Date.now();
+  const knownPlan = u.plan === "pro" || u.plan === "premium";
+  return active && validPeriod && knownPlan ? (u.plan as PlanId) : "free";
 }
 
 export async function getUsage(userId: string) {

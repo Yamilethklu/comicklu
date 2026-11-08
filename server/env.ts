@@ -67,7 +67,8 @@ export const env = {
   mailFrom: process.env.MAIL_FROM ?? "Panelforge <no-reply@localhost>",
 
   openaiKey: process.env.OPENAI_API_KEY ?? "",
-  openaiImageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1",
+  openaiImageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2.5-flare",
+  characterImageModel: process.env.CHARACTER_IMAGE_MODEL ?? "gpt-image-2.5-flare",
   openaiTextModel: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o-mini",
   openaiTtsModel: process.env.OPENAI_TTS_MODEL ?? "tts-1",
   ffmpegPath: process.env.FFMPEG_PATH ?? "",

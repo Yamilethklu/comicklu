@@ -71,9 +71,19 @@ try {
   r = await api("POST", "/api/auth/register", { name: "Tester", email, password: "password123" });
   assert.equal(r.status, 201); ok("registro");
   r = await api("GET", "/api/auth/me");
+  assert.equal(r.json.user.role, "user"); // el registro nunca crea administradores
   assert.equal(r.json.user.email, email); assert.equal(r.json.effectivePlan, "free"); ok("sesión persiste (me)");
   r = await api("POST", "/api/auth/register", { name: "Dup", email, password: "password123" });
   assert.equal(r.status, 409); ok("correo duplicado");
+
+  // --- Comentarios del sitio y acceso al panel del propietario
+  r = await api("GET", "/api/feedback"); assert.equal(r.status, 200); ok("opiniones públicas disponibles");
+  r = await api("POST", "/api/feedback", { rating: 5, comment: "La app de ComicKlu es sencilla de usar." });
+  assert.equal(r.status, 201); ok("usuario envía reseña para moderación");
+  r = await api("GET", "/api/feedback"); assert.equal(r.status, 200);
+  assert.equal(r.json.length, 0); ok("comentario no aparece sin aprobación");
+  r = await api("GET", "/api/admin/summary"); assert.equal(r.status, 403); ok("un cliente no accede a estadísticas privadas");
+  r = await api("GET", "/api/admin/feedback"); assert.equal(r.status, 403); ok("un cliente no modera opiniones");
 
   // --- comics + límites free
   r = await api("POST", "/api/comics", { title: "Mi cómic", style: "manga", panels: [{ caption: "Hola" }] });
@@ -105,6 +115,16 @@ try {
   await api("POST", "/api/auth/register", { name: "Otro", email: `o_${email}`, password: "password123" });
   r = await api("GET", `/api/comics/${id}`); assert.equal(r.status, 404); ok("aislamiento entre usuarios");
   cookie = saved;
+
+  // --- Premium: referencias privadas; PDF de pago bloqueado hasta configurar Stripe.
+  r = await api("PUT", `/api/comics/${id}`, { title: "No permitido", settings: {
+    characterReferenceUrl: (await api("GET", "/api/uploads")).json[0].url,
+  } });
+  assert.equal(r.status, 402); ok("plan Gratis no puede usar referencia Premium");
+  r = await api("GET", `/api/billing/pdf/status/${id}`);
+  assert.equal(r.status, 200); assert.equal(r.json.paid, false); ok("PDF bloqueado antes de comprar");
+  r = await api("POST", "/api/billing/pdf/checkout", { comicId: id });
+  assert.equal(r.status, 503); ok("PDF no cobra mientras falta precio en entorno");
 
   // --- IA gratuita / planes
   r = await api("POST", "/api/ai/story", { idea: "Una detective en una ciudad flotante", panelCount: 4 });
