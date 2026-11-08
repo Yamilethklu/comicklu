@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, errMsg } from "@/lib/api";
 import { allowNativeCheckout, openExternal } from "@/lib/native";
 import { useConfig, useMe } from "@/lib/hooks";
 import { Page, ErrorNote } from "@/components/Layout";
 import { PLANS, METRIC_LABEL, type Metric } from "@shared/plans";
+import type { CreditPackage, CreditBalance } from "@/lib/types";
 
 const STATUS: Record<string, string> = {
   active: "Activa", trialing: "En prueba", past_due: "Pago pendiente", canceled: "Cancelada",
@@ -33,6 +34,24 @@ export default function Account() {
     setWelcome(true);
     api("POST", "/api/billing/sync").then(() => qc.invalidateQueries({ queryKey: ["me"] })).catch((e) => setError(errMsg(e)));
   }, [qc]);
+
+  const { data: creditBalance } = useQuery<CreditBalance>({
+    queryKey: ["credits-balance"],
+    queryFn: () => api<CreditBalance>("GET", "/api/billing/credits/balance"),
+  });
+  const { data: creditPackages } = useQuery<CreditPackage[]>({
+    queryKey: ["credits-packages"],
+    queryFn: () => api<CreditPackage[]>("GET", "/api/billing/credits/packages"),
+  });
+
+  const buyCredits = async (pkg: CreditPackage) => {
+    try {
+      const { url } = await api<{ url: string }>("POST", "/api/billing/credits/purchase", { packageId: pkg.id });
+      await openExternal(url);
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  };
 
   if (!user || !me) return null;
   const plan = PLANS[me.effectivePlan ?? "free"];
@@ -115,6 +134,42 @@ export default function Account() {
           ))}
         </div>
         <p className="mt-4 text-xs text-ink/60">Los contadores mensuales se reinician el día 1 de cada mes (UTC).</p>
+      </section>
+
+      <section className="frame mt-6 p-6" aria-labelledby="creditos">
+        <h2 id="creditos" className="text-xl font-extrabold">
+          <CreditCard className="mr-2 h-5 w-5" aria-hidden />Créditos IA (pago único)
+        </h2>
+        <p className="mt-1 text-sm text-ink/70">Compra paquetes de créditos para usar la IA sin necesidad de suscripción. Los créditos no expiran.</p>
+        <div className="mt-4">
+          {creditBalance ? (
+            <div className="flex items-center gap-3 mb-4">
+              <span className="font-bold text-ink">{creditBalance.balance}</span>
+              <span className="text-sm text-ink/60">créditos disponibles</span>
+            </div>
+          ) : (
+            <div className="mt-4 grid place-items-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          )}
+          {creditPackages && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {creditPackages.map((pkg) => (
+                <div key={pkg.id} className="frame p-4 flex flex-col items-center text-center hover:shadow-hard-sm transition">
+                  <span className="text-3xl font-extrabold">{pkg.credits}</span>
+                  <span className="text-xs text-ink/60 mt-1">créditos</span>
+                  <span className="mt-2 text-lg font-bold">${(pkg.priceCents / 100).toFixed(2)} USD</span>
+                  <button
+                    key={pkg.id}
+                    onClick={() => buyCredits(pkg)}
+                    className="mt-3 btn-pop w-full text-sm"
+                    disabled={!cfg?.stripe}
+                  >
+                    {!cfg?.stripe ? "Pagos no disponibles" : "Comprar"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">

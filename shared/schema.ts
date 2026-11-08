@@ -103,6 +103,24 @@ export const userFollowers = pgTable("user_followers", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("user_followers_unique").on(t.followerId, t.followingId)]);
 
+// Créditos IA sueltos (pay-as-you-go, no suscripción)
+export const userCredits = pgTable("user_credits", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  balance: integer("balance").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [index("user_credits_user_idx").on(t.userId)]);
+
+// Historial de movimientos de crédito
+export const creditTransactions = pgTable("credit_transactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // purchase | refund | usage
+  amount: integer("amount").notNull(),
+  reference: text("reference"), // stripe payment id, render id, etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("credit_transactions_user_idx").on(t.userId)]);
+
 // Códigos de referidos
 export const referrals = pgTable("referrals", {
   id: serial("id").primaryKey(),

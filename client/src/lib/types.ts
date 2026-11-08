@@ -42,3 +42,5 @@ export interface ComicComment {
 }
 export interface ReferralInfo { code: string }
 export interface ReferralClaim { valid: boolean; ownerId: string }
+export interface CreditPackage { id: string; label: string; credits: number; priceCents: number }
+export interface CreditBalance { balance: number }
