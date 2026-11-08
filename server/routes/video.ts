@@ -64,6 +64,11 @@ export function startRenderWorker() {
 }
 
 videoRouter.post("/comics/:id/video", async (req, res) => {
+  // Un proceso HTTP de Vercel no puede alojar el worker de FFmpeg permanente.
+  // Evitar cobrar una cuota y dejar renders pendientes que jamás terminarían.
+  if (process.env.VERCEL) return res.status(503).json({
+    message: "La exportación de video requiere migrar el renderizador a un trabajo compatible con Vercel. No se ha descontado ningún video.",
+  });
   const comicId = Number(req.params.id);
   const [c] = await db.select().from(comics).where(and(eq(comics.id, comicId), eq(comics.userId, req.user!.id)));
   if (!c) throw httpError(404, "Cómic no encontrado");

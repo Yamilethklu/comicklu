@@ -44,6 +44,9 @@ Qué hace la app: Checkout hospedado por Stripe → el webhook activa el plan �
 vuelve a Gratis. Tus cómics nunca se borran por bajar de plan (solo se bloquea crear más allá del límite).
 
 ## Desplegar
+
+**Destino web único: [ComicKlu en Vercel](https://comicklu.vercel.app/).** Consulta [docs/VERCEL-UNICO.md](docs/VERCEL-UNICO.md). `render.yaml` queda retirado; React y API deben estar disponibles bajo el mismo origen.
+
 Cualquier host con Node 22 + PostgreSQL. Incluye `Dockerfile` (ya trae ffmpeg del sistema y fuentes; sin Docker instala `ffmpeg` y pon `FFMPEG_PATH`, porque el de npm no puede dibujar subtítulos).
 - Variables: las de `.env.example`. `APP_URL` debe ser la URL pública exacta con `https://`.
 - **Disco persistente** para `UPLOAD_DIR` (imágenes, audios y videos se guardan ahí). Sin disco persistente se pierden al reiniciar.
