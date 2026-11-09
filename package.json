@@ -16,7 +16,8 @@
     "mobile:ios": "npm run mobile:sync && cap open ios",
     "test:storage": "node --import tsx scripts/storage-test.ts",
     "build:vercel": "vite build",
-    "db:verify": "tsx scripts/verify-database.ts"
+    "db:verify": "tsx scripts/verify-database.ts",
+    "test:serverless": "tsx scripts/serverless-smoke.ts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",

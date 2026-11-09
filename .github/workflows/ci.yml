@@ -38,5 +38,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      # Reproduce la entrada de la función Vercel y detecta dependencias faltantes
+      # antes de fusionar cambios. No utiliza credenciales de producción.
+      - run: npm run test:serverless
       - run: npm run test:storage
       - run: npm test
