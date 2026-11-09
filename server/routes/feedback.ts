@@ -3,7 +3,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { db } from "../db";
-import { comics, pdfOrders, siteFeedback, users } from "@shared/schema";
+import { comics, pdfOrders, siteFeedback, users } from "../../shared/schema";
 import { env, stripeEnabled } from "../env";
 import { getStripe } from "../stripe";
 import { effectivePlan } from "../usage";

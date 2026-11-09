@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { users, userCredits, creditTransactions } from "@shared/schema";
+import { users, userCredits, creditTransactions } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { getStripe } from "../stripe";
 import { env } from "../env";

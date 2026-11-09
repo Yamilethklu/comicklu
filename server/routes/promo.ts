@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { users, promoCodes, promoCodeUses } from "@shared/schema";
+import { users, promoCodes, promoCodeUses } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { eq, count, and } from "drizzle-orm";
 import { httpError } from "../ssrf";
