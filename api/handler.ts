@@ -1,8 +1,22 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createApp } from "../server/index";
+import type { Express } from "express";
 
-// Una sola instancia Express por instancia caliente de Vercel; no abrir puertos.
-let appPromise: ReturnType<typeof createApp> | undefined;
+// Importar el backend dentro del handler permite capturar fallos de carga de módulos
+// que antes hacían que Vercel devolviera FUNCTION_INVOCATION_FAILED sin respuesta JSON.
+let appPromise: Promise<Express> | undefined;
+async function getApp(): Promise<Express> {
+  if (!appPromise) {
+    appPromise = import("../server/index")
+      .then(({ createApp }) => createApp({ serverless: true }))
+      .then(({ app }) => app)
+      .catch((error) => {
+        appPromise = undefined; // permitir recuperación después de fallos transitorios
+        throw error;
+      });
+  }
+  return appPromise;
+}
+
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
     const original = new URL(req.url ?? "/", "http://localhost");
@@ -10,19 +24,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const media = original.searchParams.get("media");
     if (route === null && media === null) {
       res.statusCode = 404;
-      res.end("Ruta no encontrada");
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ message: "Ruta no encontrada" }));
       return;
     }
     original.searchParams.delete("route");
     original.searchParams.delete("media");
-    const path = media !== null ? `/media/${encodeURIComponent(media)}` : `/api/${route}`;
-    req.url = path + (original.searchParams.size ? `?${original.searchParams}` : "");
-    const { app } = await (appPromise ??= createApp({ serverless: true }));
+    const routePath = media !== null ? `/media/${encodeURIComponent(media)}` : `/api/${route}`;
+    req.url = routePath + (original.searchParams.size ? `?${original.searchParams}` : "");
+    const app = await getApp();
     app(req, res);
   } catch (error) {
-    console.error("[vercel] No se pudo iniciar la API:", error);
+    console.error("[comicklu] API bootstrap failed:", error);
+    if (res.headersSent) return;
     res.statusCode = 503;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ message: "API temporalmente no disponible" }));
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ ok: false, code: "API_BOOTSTRAP_FAILED", message: "El servidor no pudo iniciar. Consulta Runtime Logs de Vercel." }));
   }
 }
