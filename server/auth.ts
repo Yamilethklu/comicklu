@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { users, type User } from "@shared/schema";
+import { users, type User } from "../shared/schema";
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 

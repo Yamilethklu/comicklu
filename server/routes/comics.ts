@@ -3,10 +3,10 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import multer from "multer";
 import { db } from "../db";
-import { comics, panels, assets } from "@shared/schema";
+import { comics, panels, assets } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { effectivePlan, comicCount } from "../usage";
-import { PLANS, STYLES } from "@shared/plans";
+import { PLANS, STYLES } from "../../shared/plans";
 import { saveBuffer, sniffImage } from "../files";
 import { fetchPublicImage, httpError } from "../ssrf";
 
@@ -47,7 +47,7 @@ const safeUrl = (u?: string | null) => (u && /^\/media\/[\w.-]+$/.test(u) ? u : 
 
 // La referencia Premium debe ser una imagen subida a la propia cuenta,
 // nunca una ruta de otro usuario ni un enlace externo arbitrario.
-async function validatedSettings(user: typeof import("@shared/schema").users.$inferSelect, settings: z.infer<typeof comicIn>["settings"]) {
+async function validatedSettings(user: typeof import("../../shared/schema").users.$inferSelect, settings: z.infer<typeof comicIn>["settings"]) {
   const reference = settings.characterReferenceUrl;
   if (!reference) return settings;
   if (effectivePlan(user) !== "premium") throw httpError(402, "Las referencias de personaje son exclusivas de Premium.");

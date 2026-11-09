@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "./db";
-import { usage, users, comics, type User } from "@shared/schema";
-import { PLANS, METRIC_LABEL, type Metric, type PlanId } from "@shared/plans";
+import { usage, users, comics, type User } from "../shared/schema";
+import { PLANS, METRIC_LABEL, type Metric, type PlanId } from "../shared/plans";
 
 export const currentMonth = () => new Date().toISOString().slice(0, 7);
 

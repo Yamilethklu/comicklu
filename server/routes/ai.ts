@@ -3,14 +3,14 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { db } from "../db";
-import { assets, comics } from "@shared/schema";
+import { assets, comics } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { aiEnabled } from "../env";
 import { generateImage, generateImageWithReference, generateJson, generateVoice, type VoiceName } from "../ai";
 import { consume, currentMonth, effectivePlan } from "../usage";
 import { saveBuffer } from "../files";
 import { httpError } from "../ssrf";
-import { STYLES } from "@shared/plans";
+import { STYLES } from "../../shared/plans";
 
 export const aiRouter = Router();
 aiRouter.use(requireAuth);

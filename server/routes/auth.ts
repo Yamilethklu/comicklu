@@ -5,13 +5,13 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import signature from "cookie-signature";
 import { db, pool } from "../db";
-import { users, assets, passwordResets } from "@shared/schema";
+import { users, assets, passwordResets } from "../../shared/schema";
 import { hashPassword, verifyPassword, publicUser, requireAuth } from "../auth";
 import { env, stripeEnabled, checkoutEnabled, aiEnabled, mailEnabled } from "../env";
 import { sendMail } from "../mail";
 import { getStripe } from "../stripe";
 import { deleteMedia } from "../files";
-import { PLANS } from "@shared/plans";
+import { PLANS } from "../../shared/plans";
 import { effectivePlan, getUsage, comicCount } from "../usage";
 
 export const authRouter = Router();

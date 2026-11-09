@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type Stripe from "stripe";
 import { db } from "../db";
-import { users, stripeEvents, comics, panels, pdfOrders } from "@shared/schema";
+import { users, stripeEvents, comics, panels, pdfOrders } from "../../shared/schema";
 import { requireAuth, publicUser } from "../auth";
 import { env, stripeEnabled, checkoutEnabled } from "../env";
 import { getStripe, priceFor, ensureCustomer, applySubscription, syncCustomer } from "../stripe";
