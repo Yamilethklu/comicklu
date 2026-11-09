@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { env } from "./env";
 import { materializeMedia, saveBuffer } from "./files";
-import type { Panel } from "@shared/schema";
+import type { Panel } from "../shared/schema";
 
 // Video 1080p para planes Pro/Premium
 const W = 1920;

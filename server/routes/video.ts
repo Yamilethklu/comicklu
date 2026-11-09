@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { comics, panels, renders, assets } from "@shared/schema";
+import { comics, panels, renders, assets } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { consume } from "../usage";
 import { renderComicVideo } from "../video";

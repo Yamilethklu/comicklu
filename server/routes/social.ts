@@ -2,10 +2,10 @@ import { Router } from "express";
 import { and, asc, desc, eq, count, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { users, comics, comicLikes, comicComments, userFollowers, referrals } from "@shared/schema";
+import { users, comics, comicLikes, comicComments, userFollowers, referrals } from "../../shared/schema";
 import { requireAuth, publicUser } from "../auth";
 import { httpError } from "../ssrf";
-import { PLANS } from "@shared/plans";
+import { PLANS } from "../../shared/plans";
 import { createNotification } from "./notifications";
 
 export const socialRouter = Router();
@@ -153,7 +153,7 @@ socialRouter.post("/comics/:id/remix", async (req, res) => {
   if (Number((currentCount[0] as any).n) >= PLANS.free.limits.comics) {
     return res.status(402).json({ message: "Límite de cómics alcanzado para tu plan." });
   }
-  const { panels } = await import("@shared/schema");
+  const { panels } = await import("../../shared/schema");
   const panelRows = await db.select().from(panels).where(eq(panels.comicId, comicId)).orderBy(asc(panels.position));
   const [nuevo] = await db.insert(comics).values({
     userId: req.user!.id,

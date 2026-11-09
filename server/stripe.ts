@@ -1,8 +1,8 @@
 import Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { users, type User } from "@shared/schema";
-import type { PlanId, Interval } from "@shared/plans";
+import { users, type User } from "../shared/schema";
+import type { PlanId, Interval } from "../shared/plans";
 import { env } from "./env";
 
 let client: Stripe | null = null;
