@@ -17,12 +17,23 @@ if (Boolean(process.env.SUPABASE_URL) !== Boolean(process.env.SUPABASE_SECRET_KE
   throw new Error("Configura SUPABASE_URL y SUPABASE_SECRET_KEY juntas.");
 }
 
+const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb");
+const databaseSslMode = new URL(databaseUrl).searchParams.get("sslmode")?.toLowerCase();
+if (isProd && !["require", "verify-ca", "verify-full"].includes(databaseSslMode ?? "")) {
+  throw new Error("Configura DATABASE_URL con sslmode=require (o verify-full) para producción.");
+}
+const sessionSecret = need("SESSION_SECRET", "dev-only-secret-change-me");
+if (isProd && (sessionSecret.length < 32 || /cambia-esto|dev-only-secret-change-me/i.test(sessionSecret))) {
+  throw new Error("SESSION_SECRET debe tener al menos 32 caracteres aleatorios en producción.");
+}
+
 export const env = {
   isProd,
   port: Number(process.env.PORT ?? 5000),
   // Supabase/Vercel puede proveer POSTGRES_URL en lugar de DATABASE_URL.
-  databaseUrl: process.env.DATABASE_URL || process.env.POSTGRES_URL || need("DATABASE_URL", "postgres://comic:comic@localhost:5432/comicdb"),
-  sessionSecret: need("SESSION_SECRET", "dev-only-secret-change-me"),
+  databaseUrl,
+  databaseSslMode,
+  sessionSecret,
   appUrl,
   // Vercel es el único origen: pagos y correos vuelven a este mismo dominio.
   siteUrl: appUrl,

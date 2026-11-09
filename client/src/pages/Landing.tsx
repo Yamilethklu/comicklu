@@ -46,7 +46,7 @@ function HeroPage() {
 const STEPS = [
   { icon: PenLine, t: "Escribe o deja que la IA te ayude", d: "Cuenta tu idea y obtén un guion dividido en viñetas con narración y diálogos.", c: "bg-sun" },
   { icon: Wand2, t: "Dale imagen a cada viñeta", d: "Genera la ilustración con IA, sube la tuya o pega un enlace.", c: "bg-zap" },
-  { icon: Mic, t: "Agrega voz y exporta", d: "Narra con voces de IA y descarga un video animado o la ficha del proyecto.", c: "bg-pop text-white" },
+  { icon: Mic, t: "Agrega voz y organiza", d: "Narra tus viñetas y guarda cada historieta en tu biblioteca.", c: "bg-pop text-white" },
 ];
 
 // Cada estilo del catálogo debe tener una tarjeta visual. La tipificación detecta
@@ -62,11 +62,12 @@ const STYLE_ART: Record<keyof typeof STYLES, { bg: string; d: string; tag: strin
   _3d: { bg: "bg-gradient-to-br from-cyan-300 to-fuchsia-400", d: "Volumen, profundidad y escenarios renderizados.", tag: "3D" },
 };
 
-const MARQUEE = ["Guion con IA", "Imágenes con IA", "Voces con IA", "Video MP4", "Cómic", "Manga", "Anime", "Cyberpunk"];
+const MARQUEE = ["Guion con IA", "Imágenes con IA", "Voces con IA", "Cómic", "Manga", "Anime", "Cyberpunk"];
 
 export default function Landing() {
   const { user } = useMe();
   const cfg = useConfig();
+  const marquee = cfg?.video ? [...MARQUEE.slice(0, 3), "Video MP4", ...MARQUEE.slice(3)] : MARQUEE;
   return (
     <Page>
       <section className="grid items-center gap-12 py-6 md:grid-cols-2">
@@ -79,7 +80,7 @@ export default function Landing() {
           </h1>
           <p className="mt-5 max-w-lg text-lg text-ink/80">
             ComicKlu es un estudio para crear cómics, manga, anime y cyberpunk. Escribe el guion, genera las imágenes con IA,
-            ponles voz y llévalas a video.
+            {cfg?.video ? " ponles voz y llévalas a video." : " ponles voz y guarda tus historietas en tu biblioteca."}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link href={user ? "/dashboard" : "/registro"} className="btn-pop btn-shine px-6 py-3 text-base">{user ? "Ir a mi biblioteca" : "Empezar gratis"}</Link>
@@ -93,7 +94,7 @@ export default function Landing() {
       {/* Cinta con las capacidades */}
       <div className="-mx-4 mt-10 overflow-hidden border-y-[3px] border-ink bg-sun py-2.5 sm:mx-0 sm:rounded-lg sm:border-[3px]" aria-hidden="true">
         <div className="flex w-max animate-marquee gap-8 font-display text-2xl tracking-wide">
-          {[...MARQUEE, ...MARQUEE].map((m, i) => <span key={i} className="flex items-center gap-8">{m}<span className="text-pop">★</span></span>)}
+          {[...marquee, ...marquee].map((m, i) => <span key={i} className="flex items-center gap-8">{m}<span className="text-pop">★</span></span>)}
         </div>
       </div>
 
@@ -115,7 +116,7 @@ export default function Landing() {
       </section>
 
       <section className="mt-16" aria-labelledby="como">
-        <h2 id="como" className="title-comic text-4xl">Del guion al video en tres pasos</h2>
+        <h2 id="como" className="title-comic text-4xl">De tu idea a una historieta en tres pasos</h2>
         <ol className="mt-6 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <li key={s.t} className="frame frame-hover relative p-5 shadow-hard">
@@ -140,7 +141,7 @@ export default function Landing() {
         <div className="halftone absolute inset-0 opacity-10" aria-hidden />
         <Film className="relative mx-auto h-10 w-10 text-sun" aria-hidden />
         <h2 id="cta" className="relative mt-3 font-display text-5xl tracking-wide">Tu primera página te espera</h2>
-        <p className="relative mx-auto mt-2 max-w-md text-white/80">Crea tu cuenta gratis y convierte una idea en un cómic con voz y video.</p>
+        <p className="relative mx-auto mt-2 max-w-md text-white/80">Crea tu cuenta gratis y convierte una idea en un cómic con voz y arte propio.</p>
         <Link href={user ? "/dashboard" : "/registro"} className="btn-sun btn-shine relative mt-6 px-8 py-3 text-base">{user ? "Ir a mi biblioteca" : "Crear mi cómic"}</Link>
       </section>
 

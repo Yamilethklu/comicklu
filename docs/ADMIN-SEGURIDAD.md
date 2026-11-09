@@ -18,4 +18,4 @@ El registro público **siempre** asigna `role=user` incluso si el usuario conoce
 
 ## Importante antes del lanzamiento
 
-Las migraciones `0005_pdf_orders`, `0006_site_feedback` y `0007_api_tables_rls` **NO** se aplican automáticamente en Vercel Serverless. Deben aplicarse una sola vez con revisión sobre el proyecto real de PostgreSQL, respaldar la base antes y comprobar el historial Drizzle. No ejecutar migraciones ni recrear tablas en cada petición.
+Las migraciones no se aplican automáticamente en Vercel Serverless. Antes de activar la aplicación, identificar la base PostgreSQL, tomar un respaldo recuperable y ejecutar `npm run db:migrate` desde un entorno autorizado. Incluye `0005_pdf_orders`, `0006_site_feedback`, `0007_api_tables_rls`, `0008_session_store` y `0009_private_tables_rls`. No ejecutar migraciones ni recrear tablas desde cada petición.

@@ -7,7 +7,7 @@ import { comics, panels, assets } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { effectivePlan, comicCount } from "../usage";
 import { PLANS, STYLES } from "../../shared/plans";
-import { saveBuffer, sniffImage } from "../files";
+import { maxUploadBytes, saveBuffer, sniffImage } from "../files";
 import { fetchPublicImage, httpError } from "../ssrf";
 
 export const comicsRouter = Router();
@@ -156,12 +156,12 @@ comicsRouter.get("/:id/export.json", async (req, res) => {
 // ---------- Subida de imágenes ----------
 export const uploadsRouter = Router();
 uploadsRouter.use(requireAuth);
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024, files: 1 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxUploadBytes, files: 1 } });
 
 uploadsRouter.post("/", upload.single("file"), async (req, res) => {
   if (!req.file) throw httpError(400, "Selecciona una imagen");
   const kind = sniffImage(req.file.buffer);
-  if (!kind) throw httpError(400, "Formato no permitido. Usa PNG, JPG, GIF o WEBP (máx. 8 MB)");
+  if (!kind) throw httpError(400, `Formato no permitido. Usa PNG, JPG, GIF o WEBP (máx. ${maxUploadBytes / 1024 / 1024} MB)`);
   const url = await saveBuffer(req.file.buffer, kind.ext);
   await db.insert(assets).values({ userId: req.user!.id, type: "image", url });
   res.status(201).json({ url });
