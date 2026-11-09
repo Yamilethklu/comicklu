@@ -1,7 +1,7 @@
 # Panelforge — plataforma de creación de cómics con IA
 
 Estudio web para escribir historias y crear cómics, manga, anime y cyberpunk: guion con IA, imágenes con IA
-(o subidas/por enlace), voces con IA, vista previa tipo página, exportación JSON y **video MP4 animado**.
+(o subidas/por enlace), voces con IA, vista previa tipo página, exportación JSON y video MP4 en servidores con worker persistente.
 Cuentas de usuario, biblioteca en la nube y **suscripciones Gratis / Pro / Premium con Stripe**.
 
 **Stack:** React + Vite + Tailwind · Express 5 · PostgreSQL (Drizzle) · Stripe · IA gratuita (Pollinations / Gemini / Hugging Face / espeak-ng) · ffmpeg.
@@ -21,10 +21,11 @@ Los precios mostrados ahí son solo informativos: **el cobro real es el del Pric
 ## Arrancar en tu computadora
 ```bash
 npm install
-cp .env.example .env        # y rellénalo
-createdb comicdb            # o usa cualquier PostgreSQL y pon su DATABASE_URL
+docker compose up -d --wait postgres
+cp .env.example .env         # y rellénalo
 npm run dev                 # http://localhost:5000  (las migraciones se aplican solas)
 ```
+Para desarrollo local, configura en `.env` `DATABASE_URL=postgres://comic:comic@localhost:5432/comicdb`. Para detener PostgreSQL: `docker compose stop postgres`; los datos permanecen en el volumen `comicklu-postgres-data`.
 La IA funciona sin ninguna clave (ver «IA gratuita»). Sin claves de Stripe la app funciona, pero muestra "Pagos no disponibles".
 
 ## Configurar Stripe (paso a paso)
@@ -45,11 +46,11 @@ vuelve a Gratis. Tus cómics nunca se borran por bajar de plan (solo se bloquea 
 
 ## Desplegar
 
-**Destino web único: [ComicKlu en Vercel](https://comicklu.vercel.app/).** Consulta [docs/VERCEL-UNICO.md](docs/VERCEL-UNICO.md). `render.yaml` queda retirado; React y API deben estar disponibles bajo el mismo origen.
+**Destino web único: [ComicKlu en Vercel](https://comicklu.vercel.app/).** Consulta [docs/VERCEL-UNICO.md](docs/VERCEL-UNICO.md). `render.yaml` queda retirado; React y API deben estar disponibles bajo el mismo origen. El PostgreSQL de Docker Compose es solo para desarrollo y pruebas; en producción configura la base administrada del proveedor. En Vercel no está habilitada la exportación de video; las subidas desde navegador aceptan hasta 4 MB.
 
 Cualquier host con Node 22 + PostgreSQL. Incluye `Dockerfile` (ya trae ffmpeg del sistema y fuentes; sin Docker instala `ffmpeg` y pon `FFMPEG_PATH`, porque el de npm no puede dibujar subtítulos).
 - Variables: las de `.env.example`. `APP_URL` debe ser la URL pública exacta con `https://`.
-- **Disco persistente** para `UPLOAD_DIR` (imágenes, audios y videos se guardan ahí). Sin disco persistente se pierden al reiniciar.
+- En servidores con Express persistente, usa un disco persistente para `UPLOAD_DIR`. Vercel requiere Supabase Storage; los archivos se entregan mediante URLs firmadas.
 - Build/arranque sin Docker: `npm ci && npm run build && npm start`.
 
 ## Pruebas
@@ -70,7 +71,7 @@ webhooks Stripe con firma e idempotencia · cabeceras de seguridad (helmet/CSP) 
 - Sin verificación del correo al registrarse. La recuperación de contraseña por correo requiere configurar `SMTP_URL`.
 
 ## App de Android y iOS (Capacitor)
-La misma app web se empaqueta como app nativa; el servidor es el mismo (cuentas, biblioteca, IA, videos).
+La misma app web se empaqueta como app nativa; el servidor es el mismo (cuentas, biblioteca, IA y funciones disponibles en ese hosting).
 1. El servidor debe estar publicado con **https** (ver «Desplegar»). Opcional: `CORS_ORIGINS` con orígenes extra separados por coma.
 2. `cp .env.mobile.example .env.mobile` y pon en `VITE_API_URL` la URL pública de tu servidor.
 3. Cambia `appId` en `capacitor.config.ts` (ej. `com.tuempresa.panelforge`) **antes** de publicar.
@@ -82,4 +83,4 @@ La misma app web se empaqueta como app nativa; el servidor es el mismo (cuentas,
   Mira la sección de pagos antes de activar `VITE_NATIVE_EXTERNAL_CHECKOUT=true`.
 
 ## Configuración de producción preparada
-Consulta [docs/PRODUCCION.md](docs/PRODUCCION.md). `render.yaml` usa Render Free; Supabase conserva la base de datos y los archivos sin disco persistente de Render. Requiere configurar el proyecto y las credenciales de Supabase antes de desplegar.
+Consulta [docs/PRODUCCION.md](docs/PRODUCCION.md) y [docs/VERCEL-UNICO.md](docs/VERCEL-UNICO.md) para el checklist de producción y las variables externas necesarias.

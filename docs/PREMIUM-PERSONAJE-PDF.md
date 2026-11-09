@@ -21,7 +21,7 @@
 
 ## Requisitos antes de abrir cobros reales
 
-1. Ejecutar la migración `0005_pdf_orders.sql` en Supabase mediante la ruta controlada del proyecto y verificar que `pdf_orders` existe. **No ejecutar automáticamente migraciones en cada invocación serverless.**
+1. Tras identificar PostgreSQL y obtener un respaldo verificable, ejecutar `npm run db:migrate` desde un entorno autorizado y comprobar con `npm run db:verify` que `pdf_orders` existe. **No ejecutar automáticamente migraciones en cada invocación serverless.**
 2. En Vercel Production establecer `PDF_EXPORT_PRICE_CENTS`, `STRIPE_WEBHOOK_SECRET`, `APP_URL=https://comicklu.vercel.app` y la clave privada Stripe correspondiente. Las variables `STRIPE_PRICE_*` siguen siendo necesarias para las suscripciones.
 3. Configurar el webhook de Stripe a `https://comicklu.vercel.app/api/billing/webhook` con `checkout.session.completed`. Validar firma con raw body y desactivar el endpoint antiguo solo cuando esté confirmado.
 4. Usar Stripe TEST en un entorno separado para verificar: pago pagado, cancelado, repetido, otro usuario, otra historieta, webhook duplicado, sesión falsa, historial de descarga.

@@ -1,0 +1,1 @@
+-- Drizzle snapshot baseline: the schema is already created by migrations 0000-0009.

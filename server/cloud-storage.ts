@@ -22,6 +22,13 @@ export async function signedObjectUrl(name: string) {
   return data.signedUrl;
 }
 
+export async function verifyCloudBucket() {
+  if (!cloudStorageEnabled()) return;
+  bucket();
+  const { data, error } = await client!.storage.getBucket(env.supabaseBucket);
+  if (error || !data) throw new Error("El bucket privado de Supabase Storage no está disponible");
+}
+
 export async function removeObject(name: string) {
   const { error } = await bucket().remove([name]);
   if (error) throw new Error("No se pudo eliminar el archivo de Supabase Storage");

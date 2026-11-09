@@ -8,7 +8,7 @@ import fs from "node:fs";
 import http from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { cloudStorageEnabled, signedObjectUrl, ensureCloudBucket } from "./cloud-storage";
+import { cloudStorageEnabled, signedObjectUrl, ensureCloudBucket, verifyCloudBucket } from "./cloud-storage";
 import { localPathFromUrl } from "./files";
 import { ZodError } from "zod";
 import { env } from "./env";
@@ -24,7 +24,7 @@ import { socialRouter } from "./routes/social";
 import { notificationsRouter, createNotification } from "./routes/notifications";
 import { creditsRouter } from "./routes/credits";
 import { adminRouter, feedbackRouter } from "./routes/feedback";
-import { uploadRoot, ensureUploadDir } from "./files";
+import { maxUploadLabel, uploadRoot, ensureUploadDir } from "./files";
 import { log, requestLogger } from "./logger";
 import { aiEnabled, stripeEnabled, mailEnabled } from "./env";
 import { cloudStorageEnabled as csEnabled } from "./cloud-storage";
@@ -43,6 +43,7 @@ export async function createApp(options: { serverless?: boolean } = {}) {
   }
 
   const app = express();
+  const storageOrigin = cloudStorageEnabled() ? new URL(env.supabaseUrl).origin : null;
   if (env.isProd) app.set("trust proxy", 1);
   app.disable("x-powered-by");
 
@@ -53,8 +54,8 @@ export async function createApp(options: { serverless?: boolean } = {}) {
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        mediaSrc: ["'self'", "blob:"],
+        imgSrc: ["'self'", "data:", "blob:", ...(storageOrigin ? [storageOrigin] : [])],
+        mediaSrc: ["'self'", "blob:", ...(storageOrigin ? [storageOrigin] : [])],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],
@@ -107,7 +108,12 @@ export async function createApp(options: { serverless?: boolean } = {}) {
     // Stream through our origin so CSP and mobile playback remain compatible.
     app.get("/media/:name", async (req, res) => {
       if (!localPathFromUrl(`/media/${req.params.name}`)) return void res.sendStatus(404);
-      const upstream = await fetch(await signedObjectUrl(String(req.params.name)), {
+      const signedUrl = await signedObjectUrl(String(req.params.name));
+      if (process.env.VERCEL) {
+        res.setHeader("Cache-Control", "private, no-store");
+        return void res.redirect(302, signedUrl);
+      }
+      const upstream = await fetch(signedUrl, {
         headers: req.headers.range ? { Range: req.headers.range } : {},
         signal: AbortSignal.timeout(120_000),
       });
@@ -127,7 +133,7 @@ export async function createApp(options: { serverless?: boolean } = {}) {
   const PgStore = connectPgSimple(session);
   app.use(session({
     name: "comic.sid",
-    store: new PgStore({ pool, createTableIfMissing: true }),
+    store: new PgStore({ pool, createTableIfMissing: !options.serverless }),
     secret: env.sessionSecret,
     resave: false,
     saveUninitialized: false,
@@ -142,22 +148,25 @@ export async function createApp(options: { serverless?: boolean } = {}) {
     // Base de datos
     try {
       await pool.query("SELECT 1");
+      await pool.query("SELECT 1 FROM public.session LIMIT 0");
       checks.database = { ok: true };
     } catch (e) {
-      checks.database = { ok: false, detail: (e as Error).message };
+      log("error", "Database health check failed", { code: (e as NodeJS.ErrnoException).code ?? "UNKNOWN" });
+      checks.database = { ok: false, detail: "no disponible o migraciones incompletas" };
       allOk = false;
     }
 
     // Supabase Storage
     try {
       if (csEnabled()) {
-        await Promise.resolve(); // el bucket se asegura en el arranque
+        await verifyCloudBucket();
         checks.supabase = { ok: true };
       } else {
         checks.supabase = { ok: true, detail: "no configurado (almacenamiento local)" };
       }
     } catch (e) {
-      checks.supabase = { ok: false, detail: (e as Error).message };
+      log("error", "Supabase Storage health check failed", { code: (e as NodeJS.ErrnoException).code ?? "UNKNOWN" });
+      checks.supabase = { ok: false, detail: "bucket no disponible" };
       allOk = false;
     }
 
@@ -206,7 +215,7 @@ export async function createApp(options: { serverless?: boolean } = {}) {
     if (err instanceof ZodError) {
       return res.status(400).json({ message: err.issues[0]?.message ?? "Datos no válidos" });
     }
-    if (err?.code === "LIMIT_FILE_SIZE") return res.status(413).json({ message: "El archivo supera 8 MB" });
+    if (err?.code === "LIMIT_FILE_SIZE") return res.status(413).json({ message: `El archivo supera ${maxUploadLabel}` });
     const status = err?.status ?? err?.statusCode ?? 500;
     if (status === 500) console.error(err);
     res.status(status).json({ message: status >= 500 && status !== 503 && status !== 502 ? "Error interno del servidor" : err.message });

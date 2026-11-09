@@ -13,11 +13,12 @@ const client = new pg.Client({
 });
 const required = [
   "users", "comics", "panels", "assets", "usage", "stripe_events",
-  "pdf_orders", "site_feedback", "user_followers",
-  "credit_transactions", "notifications",
+  "renders", "password_resets", "session", "comic_likes", "comic_comments",
+  "user_followers", "referrals", "user_credits", "credit_transactions",
+  "push_tokens", "notifications", "promo_codes", "promo_code_uses",
+  "pdf_orders", "site_feedback",
 ];
-const rls = ["users", "comics", "panels", "assets", "usage", "stripe_events",
-  "pdf_orders", "site_feedback", "user_followers", "credit_transactions", "notifications"];
+const rls = required;
 try {
   await client.connect();
   const result = await client.query<{ tablename: string; rowsecurity: boolean }>(
@@ -29,12 +30,13 @@ try {
   const unprotected = rls.filter(t => existing.has(t) && !existing.get(t));
   const cols = await client.query<{ table_name: string; column_name: string }>(
     "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ANY($1::text[])",
-    [["pdf_orders", "site_feedback"]],
+    [["pdf_orders", "site_feedback", "session"]],
   );
   const columnSet = new Set(cols.rows.map(c => c.table_name + "." + c.column_name));
   const columnsNeeded = [
     "pdf_orders.user_id", "pdf_orders.comic_id", "pdf_orders.stripe_session_id",
     "site_feedback.user_id", "site_feedback.rating", "site_feedback.status",
+    "session.sid", "session.sess", "session.expire",
   ];
   const missingColumns = columnsNeeded.filter(c => !columnSet.has(c));
   const journal = await client.query<{ exists: string | null }>(

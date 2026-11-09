@@ -5,6 +5,8 @@ import { env } from "./env";
 import { cloudStorageEnabled, uploadObject, signedObjectUrl, removeObject } from "./cloud-storage";
 
 export const uploadRoot = path.resolve(env.uploadDir);
+export const maxUploadBytes = process.env.VERCEL ? 4 * 1024 * 1024 : 8 * 1024 * 1024;
+export const maxUploadLabel = process.env.VERCEL ? "4 MB" : "8 MB";
 
 export async function ensureUploadDir() {
   await fs.mkdir(uploadRoot, { recursive: true });
