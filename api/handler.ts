@@ -1,13 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Express } from "express";
-import { createApp } from "../server/index";
+
 
 // Importación estática: Vercel debe incluir el grafo completo del servidor en la función.
 // La importación dinámica anterior podía quedar sin empaquetar y causar ERR_MODULE_NOT_FOUND.
 let appPromise: Promise<Express> | undefined;
 async function getApp(): Promise<Express> {
   if (!appPromise) {
-    appPromise = createApp({ serverless: true })
+    appPromise = import("../server/index.js").then(({ createApp }) => createApp({ serverless: true }))
       .then(({ app }) => app)
       .catch((error) => {
         appPromise = undefined; // permitir recuperación después de fallos transitorios
