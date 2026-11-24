@@ -27,7 +27,7 @@ process.env.SUPABASE_URL = `http://127.0.0.1:${storageAddress.port}`;
 
 // La importación de la función es deliberadamente dinámica para que las
 // variables de prueba estén configuradas antes de evaluar server/env.ts.
-const { default: handler } = await import("../api/handler");
+const { default: handler } = await import("../server/vercel-handler");
 const server = http.createServer((req, res) => void handler(req, res));
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 try {
