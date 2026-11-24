@@ -125,7 +125,7 @@ function packPages(images: Uint8Array[], W:number,H:number): Blob {
     begin(image);
     write(`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.byteLength} >>\nstream\n`);
     add(bytes); write("\nendstream\n"); end();
-    const ops = encode("q\n${Math.round(842*W/H)} 0 0 842 0 0 cm\n/Im0 Do\nQ\n");
+    const ops = encode(`q\n${Math.round(842*W/H)} 0 0 842 0 0 cm\n/Im0 Do\nQ\n`);
     begin(content); write(`<< /Length ${ops.length} >>\nstream\n`); add(ops); write("endstream\n"); end();
   }
   const xref = length;
@@ -144,4 +144,10 @@ export function downloadComicPdf(blob: Blob, name: string) {
   const a = document.createElement("a"); a.href = url; a.download = safe + ".pdf";
   document.body.append(a); a.click(); a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function buildBookPdf(urls:string[], format:"a4"|"letter"|"comic", numbered=true):Promise<Blob>{
+ if(!urls.length)throw new Error("No hay páginas");
+ const sizes={a4:[2480,3508],letter:[2550,3300],comic:[1988,3056]};const [w,h]=sizes[format];const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;const ctx=canvas.getContext("2d");if(!ctx)throw new Error("No se pudo preparar impresión");const images:Uint8Array[]=[];
+ for(let i=0;i<urls.length;i++){const img=new Image();img.crossOrigin="anonymous";img.src=urls[i];await img.decode();ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);const left=i%2===0?150:90;drawContain(ctx,img,left,90,w-240,h-210);if(numbered){ctx.fillStyle="#222";ctx.font="36px sans-serif";ctx.textAlign="center";ctx.fillText(String(i+1),w/2,h-45);}images.push(await jpeg(canvas));}return packPages(images,w,h);
 }

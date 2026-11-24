@@ -171,7 +171,7 @@ aiRouter.post("/voice", async (req, res) => {
 
  // Página completa: una sola ilustración con composición y rotulación integradas.
 aiRouter.post("/page", async (req, res) => {
-  const b = z.object({ idea: z.string().trim().min(10).max(700), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6), referenceUrl: z.string().max(100).optional() }).parse(req.body);
+  const b = z.object({ idea: z.string().trim().min(10).max(2400), pageNumber:z.number().int().min(1).max(22).optional(), totalPages:z.number().int().min(1).max(22).optional(), cover:z.enum(["front","back"]).optional(), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6), referenceUrl: z.string().max(100).optional() }).parse(req.body);
   requireAi();
   if (b.referenceUrl) {
     const [owned] = await db.select({id: assets.id}).from(assets).where(and(eq(assets.userId, req.user!.id), eq(assets.url,b.referenceUrl), eq(assets.type,"image")));
@@ -180,7 +180,7 @@ aiRouter.post("/page", async (req, res) => {
   }
   const refund = await consume(req.user!, "image");
   try {
-    const prompt = `Complete portrait comic PAGE, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Tell a coherent beginning, middle and ending. Short readable speech bubbles and narration boxes in ${b.language}, correct spelling, no watermark. Story: ${b.idea}`;
+    const prompt = b.cover ? `Portrait illustrated comic ${b.cover} cover, ${STYLES[b.style].prompt}, professional print composition, ${b.idea}, no watermark` : `Complete portrait comic PAGE, page ${b.pageNumber||1} of ${b.totalPages||1}, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Follow the supplied scene plan without repeating earlier events. Short readable speech bubbles and narration boxes in ${b.language}, correct spelling, no watermark. Story: ${b.idea}`;
     const { buf, ext } = b.referenceUrl ? await generateImageWithReference(prompt, "portrait", b.referenceUrl) : await generateImage(prompt, "portrait");
     const url = await saveBuffer(buf, ext);
     await db.insert(assets).values({ userId: req.user!.id, type: "image", url, prompt: b.idea });
@@ -191,3 +191,9 @@ aiRouter.post("/page", async (req, res) => {
     throw httpError(502, "No se pudo generar la página. No se descontó de tu plan.");
   }
 });
+
+ aiRouter.post("/book-plan", async (req,res)=>{
+ const b=z.object({idea:z.string().trim().min(10).max(700),language:z.string().max(40),pageCount:z.number().int().min(1).max(20),panelCount:z.union([z.literal(4),z.literal(6),z.literal(8)])}).parse(req.body);
+ requireAi();const refund=await consume(req.user!,"story");
+ try {const schema=z.object({title:z.string().max(120),characters:z.string().max(600),pages:z.array(z.string().min(10).max(1200)).length(b.pageCount)});const result=await generateJson("Return JSON title, characters (consistent visual descriptions), pages (one sequential scene plan per page, each with "+b.panelCount+" panels and short exact dialogue in "+b.language+"). Exactly "+b.pageCount+" pages. Continuous story with beginning and ending.",b.idea,x=>schema.parse(x));res.json(result);}catch(e){await refund();throw httpError(502,"No se pudo preparar el guion del libro.");}
+ });
