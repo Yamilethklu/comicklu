@@ -99,7 +99,11 @@ export async function buildComicPdf(comic: ComicData): Promise<Blob> {
     images.push(await jpeg(canvas));
   }
 
-  // Montaje de PDF 1.4 sin dependencias externas; páginas JPEG incrustadas.
+  return packPages(images,W,H);
+}
+
+function packPages(images: Uint8Array[], W:number,H:number): Blob {
+
   const chunks: BlobPart[] = [];
   const offsets: number[] = [0];
   let length = 0;
@@ -116,12 +120,12 @@ export async function buildComicPdf(comic: ComicData): Promise<Blob> {
   for (let i = 0; i < count; i++) {
     const page = 3 + i * 3, image = page + 1, content = page + 2, bytes = images[i];
     begin(page);
-    write(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im0 ${image} 0 R >> >> /Contents ${content} 0 R >>\n`);
+    write(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${Math.round(842*W/H)} 842] /Resources << /XObject << /Im0 ${image} 0 R >> >> /Contents ${content} 0 R >>\n`);
     end();
     begin(image);
     write(`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.byteLength} >>\nstream\n`);
     add(bytes); write("\nendstream\n"); end();
-    const ops = encode("q\n595 0 0 842 0 0 cm\n/Im0 Do\nQ\n");
+    const ops = encode("q\n${Math.round(842*W/H)} 0 0 842 0 0 cm\n/Im0 Do\nQ\n");
     begin(content); write(`<< /Length ${ops.length} >>\nstream\n`); add(ops); write("endstream\n"); end();
   }
   const xref = length;
@@ -131,6 +135,8 @@ export async function buildComicPdf(comic: ComicData): Promise<Blob> {
   write(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
   return new Blob(chunks, { type: "application/pdf" });
 }
+
+export async function buildPagePdf(canvas: HTMLCanvasElement): Promise<Blob> { return packPages([await jpeg(canvas)],canvas.width,canvas.height); }
 
 export function downloadComicPdf(blob: Blob, name: string) {
   const safe = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 70) || "historieta";

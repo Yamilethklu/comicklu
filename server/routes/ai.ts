@@ -171,12 +171,17 @@ aiRouter.post("/voice", async (req, res) => {
 
  // Página completa: una sola ilustración con composición y rotulación integradas.
 aiRouter.post("/page", async (req, res) => {
-  const b = z.object({ idea: z.string().trim().min(10).max(700), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6) }).parse(req.body);
+  const b = z.object({ idea: z.string().trim().min(10).max(700), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6), referenceUrl: z.string().max(100).optional() }).parse(req.body);
   requireAi();
+  if (b.referenceUrl) {
+    const [owned] = await db.select({id: assets.id}).from(assets).where(and(eq(assets.userId, req.user!.id), eq(assets.url,b.referenceUrl), eq(assets.type,"image")));
+    if (!owned) throw httpError(403,"Referencia no autorizada.");
+    if (!process.env.OPENAI_API_KEY) throw httpError(503,"La IA con referencia requiere configurar un proveedor compatible.");
+  }
   const refund = await consume(req.user!, "image");
   try {
     const prompt = `Complete portrait comic PAGE, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Tell a coherent beginning, middle and ending. Short readable speech bubbles and narration boxes in ${b.language}, correct spelling, no watermark. Story: ${b.idea}`;
-    const { buf, ext } = await generateImage(prompt, "portrait");
+    const { buf, ext } = b.referenceUrl ? await generateImageWithReference(prompt, "portrait", b.referenceUrl) : await generateImage(prompt, "portrait");
     const url = await saveBuffer(buf, ext);
     await db.insert(assets).values({ userId: req.user!.id, type: "image", url, prompt: b.idea });
     res.status(201).json({ url });
