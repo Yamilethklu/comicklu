@@ -47,13 +47,13 @@ const safeUrl = (u?: string | null) => (u && /^\/media\/[\w.-]+$/.test(u) ? u : 
 
 // La referencia Premium debe ser una imagen subida a la propia cuenta,
 // nunca una ruta de otro usuario ni un enlace externo arbitrario.
-async function validatedSettings(user: typeof import("../../shared/schema").users.$inferSelect, settings: z.infer<typeof comicIn>["settings"]) {
+async function validatedSettings(user: typeof import("../../shared/schema").users.$inferSelect, settings: z.infer<typeof comicIn>["settings"], executor: Pick<typeof db, "select"> = db) {
   const reference = settings.characterReferenceUrl;
   if (!reference) return settings;
   if (effectivePlan(user) !== "premium") throw httpError(402, "Las referencias de personaje son exclusivas de Premium.");
   if (!/^\/media\/[a-f0-9-]{36}\.(png|jpg|webp)$/.test(reference))
     throw httpError(400, "La referencia debe ser una imagen PNG, JPG o WEBP subida a ComicKlu.");
-  const [owned] = await db.select({ id: assets.id }).from(assets)
+  const [owned] = await executor.select({ id: assets.id }).from(assets)
     .where(and(eq(assets.userId, user.id), eq(assets.url, reference), eq(assets.type, "image")));
   if (!owned) throw httpError(403, "Esta referencia no pertenece a tu cuenta.");
   return settings;
@@ -117,7 +117,7 @@ comicsRouter.put("/:id", async (req, res) => {
   await db.transaction(async (tx) => {
     await tx.update(comics).set({
       title: body.title, synopsis: body.synopsis, story: body.story, style: body.style,
-      settings: await validatedSettings(req.user!, body.settings), coverUrl: safeUrl(body.coverUrl), updatedAt: new Date(),
+      settings: await validatedSettings(req.user!, body.settings, tx), coverUrl: safeUrl(body.coverUrl), updatedAt: new Date(),
     }).where(eq(comics.id, id));
     await tx.delete(panels).where(eq(panels.comicId, id));
     if (body.panels.length) {
