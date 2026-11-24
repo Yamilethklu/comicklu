@@ -44,7 +44,7 @@ adminRouter.get("/summary", async (_req, res) => {
   const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
   const [people, comicsTotal, pdfGross, latest, feedback] = await Promise.all([
     db.select({
-      id: users.id, plan: users.plan, subscriptionStatus: users.subscriptionStatus,
+      id: users.id, role: users.role, plan: users.plan, subscriptionStatus: users.subscriptionStatus,
       currentPeriodEnd: users.currentPeriodEnd, stripeCustomerId: users.stripeCustomerId,
       createdAt: users.createdAt,
     }).from(users),

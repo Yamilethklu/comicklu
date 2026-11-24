@@ -45,8 +45,8 @@ function HeroPage() {
 
 const STEPS = [
   { icon: PenLine, t: "Escribe o deja que la IA te ayude", d: "Cuenta tu idea y obtén un guion dividido en viñetas con narración y diálogos.", c: "bg-sun" },
-  { icon: Wand2, t: "Dale imagen a cada viñeta", d: "Genera la ilustración con IA, sube la tuya o pega un enlace.", c: "bg-zap" },
-  { icon: Mic, t: "Agrega voz y organiza", d: "Narra tus viñetas y guarda cada historieta en tu biblioteca.", c: "bg-pop text-white" },
+  { icon: Wand2, t: "Genera páginas completas con IA", d: "Selecciona estilo, personaje de referencia y número de páginas.", c: "bg-zap" },
+  { icon: Mic, t: "Descarga tu libro", d: "Revisa tus páginas y exporta el PDF para imprimir.", c: "bg-pop text-white" },
 ];
 
 // Cada estilo del catálogo debe tener una tarjeta visual. La tipificación detecta
@@ -70,20 +70,20 @@ export default function Landing() {
   const marquee = cfg?.video ? [...MARQUEE.slice(0, 3), "Video MP4", ...MARQUEE.slice(3)] : MARQUEE;
   return (
     <Page>
-      <section className="grid items-center gap-12 py-6 md:grid-cols-2">
+      <section className="grid items-center gap-12 rounded-xl border-[3px] border-ink bg-[#fff5d8] p-6 shadow-hard-lg md:grid-cols-2 md:p-10">
         <div>
           <p className="inline-flex -rotate-1 items-center gap-1.5 rounded-full border-[3px] border-ink bg-white px-3 py-1 text-xs font-extrabold shadow-hard-sm">
             <Sparkles className="h-3.5 w-3.5 text-pop" aria-hidden /> Estudio de cómics con IA
           </p>
           <h1 className="mt-4 font-display text-6xl leading-[0.95] tracking-wide md:text-7xl">
-            Tu historia,<br /><span className="hl">viñeta</span> por <span className="text-pop">viñeta</span>
+            Tu historia,<br /><span className="hl">un libro</span> de <span className="text-pop">cómic</span>
           </h1>
           <p className="mt-5 max-w-lg text-lg text-ink/80">
-            ComicKlu es un estudio para crear cómics, manga, anime y cyberpunk. Escribe el guion, genera las imágenes con IA,
+            Convierte una idea y una imagen de referencia en un libro ilustrado, con páginas completas, diálogos y PDF para imprimir. Además,
             {cfg?.video ? " ponles voz y llévalas a video." : " ponles voz y guarda tus historietas en tu biblioteca."}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link href={user ? "/dashboard" : "/registro"} className="btn-pop btn-shine px-6 py-3 text-base">{user ? "Ir a mi biblioteca" : "Empezar gratis"}</Link>
+            <Link href={user ? "/generar" : "/registro"} className="btn-pop btn-shine px-6 py-3 text-base">{user ? "Crear mi libro" : "Empezar gratis"}</Link>
             <Link href="/precios" className="btn-ghost px-6 py-3 text-base">Ver planes</Link>
           </div>
           <p className="mt-4 text-sm font-semibold text-ink/60">Sin tarjeta · Plan Gratis para siempre</p>
@@ -116,7 +116,7 @@ export default function Landing() {
       </section>
 
       <section className="mt-16" aria-labelledby="como">
-        <h2 id="como" className="title-comic text-4xl">De tu idea a una historieta en tres pasos</h2>
+        <h2 id="como" className="title-comic text-4xl">Cómo funciona ComicKlu en 3 pasos</h2>
         <ol className="mt-6 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <li key={s.t} className="frame frame-hover relative p-5 shadow-hard">
@@ -142,7 +142,7 @@ export default function Landing() {
         <Film className="relative mx-auto h-10 w-10 text-sun" aria-hidden />
         <h2 id="cta" className="relative mt-3 font-display text-5xl tracking-wide">Tu primera página te espera</h2>
         <p className="relative mx-auto mt-2 max-w-md text-white/80">Crea tu cuenta gratis y convierte una idea en un cómic con voz y arte propio.</p>
-        <Link href={user ? "/dashboard" : "/registro"} className="btn-sun btn-shine relative mt-6 px-8 py-3 text-base">{user ? "Ir a mi biblioteca" : "Crear mi cómic"}</Link>
+        <Link href={user ? "/generar" : "/registro"} className="btn-sun btn-shine relative mt-6 px-8 py-3 text-base">{user ? "Crear mi libro" : "Crear mi cómic"}</Link>
       </section>
 
       <Footer />
