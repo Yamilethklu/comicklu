@@ -174,12 +174,15 @@ aiRouter.post("/page", async (req, res) => {
   const b = z.object({ idea: z.string().trim().min(10).max(2400), pageNumber:z.number().int().min(1).max(22).optional(), totalPages:z.number().int().min(1).max(22).optional(), cover:z.enum(["front","back"]).optional(), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6), referenceUrl: z.string().max(100).optional() }).parse(req.body);
   requireAi();
   if (b.referenceUrl) {
+    if (effectivePlan(req.user!) !== "premium") throw httpError(402, "Las referencias visuales son exclusivas de Premium.");
     const [owned] = await db.select({id: assets.id}).from(assets).where(and(eq(assets.userId, req.user!.id), eq(assets.url,b.referenceUrl), eq(assets.type,"image")));
     if (!owned) throw httpError(403,"Referencia no autorizada.");
     if (!process.env.OPENAI_API_KEY && !process.env.POLLINATIONS_API_KEY) throw httpError(503,"La IA con referencia requiere configurar un proveedor compatible.");
   }
   const refund = await consume(req.user!, "image");
+  let refundReference: (() => Promise<void>) | undefined;
   try {
+    if (b.referenceUrl && req.user!.role !== "admin") refundReference = await reserveReference(req.user!.id);
     const prompt = b.cover ? `Portrait illustrated comic ${b.cover} cover, ${STYLES[b.style].prompt}, professional print composition, ${b.idea}, no watermark` : `Complete portrait comic PAGE, page ${b.pageNumber||1} of ${b.totalPages||1}, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Follow the supplied scene plan without repeating earlier events. Short readable speech bubbles and narration boxes in ${b.language}, correct spelling, no watermark. Story: ${b.idea}`;
     const { buf, ext } = b.referenceUrl ? await generateImageWithReference(prompt, "portrait", b.referenceUrl) : await generateImage(prompt, "portrait");
     const url = await saveBuffer(buf, ext);
@@ -187,6 +190,7 @@ aiRouter.post("/page", async (req, res) => {
     res.status(201).json({ url });
   } catch (e) {
     await refund();
+    if (refundReference) await refundReference();
     console.error("[ai/page]", (e as Error).message);
     throw httpError(502, "No se pudo generar la página. No se descontó de tu plan.");
   }
