@@ -91,6 +91,6 @@ export const checkoutEnabled = () => stripeEnabled() && !!env.stripeWebhookSecre
 export const aiEnabled = () => {
   if (env.aiProvider === "off") return false;
   if (env.aiProvider === "openai") return !!env.openaiKey;
-  return env.pollinations.enabled || !!env.geminiKey || !!env.hfToken;
+  return env.pollinations.enabled || !!env.geminiKey || !!env.hfToken || !!process.env.GROQ_API_KEY;
 };
 export const mailEnabled = () => !!env.smtpUrl || process.env.NODE_ENV === "test";
