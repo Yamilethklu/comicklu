@@ -84,7 +84,7 @@ authRouter.get("/me", async (req, res) => {
   res.json({
     user: publicUser(req.user),
     effectivePlan: plan,
-    limits: PLANS[plan].limits,
+    limits: req.user.role === "admin" ? { comics: Number.MAX_SAFE_INTEGER, panelsPerComic: Number.MAX_SAFE_INTEGER, monthly: { image: Number.MAX_SAFE_INTEGER, story: Number.MAX_SAFE_INTEGER, voice: Number.MAX_SAFE_INTEGER, video: Number.MAX_SAFE_INTEGER } } : PLANS[plan].limits,
     usage: await getUsage(req.user.id),
     comics: await comicCount(req.user.id),
   });

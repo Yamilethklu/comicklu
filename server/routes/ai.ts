@@ -130,7 +130,7 @@ aiRouter.post("/image", async (req, res) => {
   const refund = await consume(req.user!, "image");
   let refundReference: (() => Promise<void>) | undefined;
   try {
-    if (referenceUrl) refundReference = await reserveReference(req.user!.id);
+    if (referenceUrl) refundReference = (req.user!.role === "admin" ? async () => {} : await reserveReference(req.user!.id));
     const prompt = `${STYLES[b.style].prompt}. ${b.prompt}.${b.palette ? ` Color palette: ${b.palette}.` : ""} No text, no captions, no speech bubbles, no watermarks.`;
     const { buf, ext } = referenceUrl
       ? await generateImageWithReference(prompt + characterPrompt, b.orientation, referenceUrl)

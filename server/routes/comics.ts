@@ -81,12 +81,12 @@ comicsRouter.get("/", async (req, res) => {
 
 comicsRouter.post("/", async (req, res) => {
   const plan = PLANS[effectivePlan(req.user!)];
-  if ((await comicCount(req.user!.id)) >= plan.limits.comics) {
+  if (req.user!.role !== "admin" && (await comicCount(req.user!.id)) >= plan.limits.comics) {
     return res.status(402).json({ message: `Tu plan ${plan.name} permite ${plan.limits.comics} cómics. Mejora tu plan o elimina alguno.` });
   }
   const body = comicIn.parse({ title: "Cómic sin título", ...req.body });
   const plimit = plan.limits.panelsPerComic;
-  if (body.panels.length > plimit) throw httpError(402, `Tu plan permite hasta ${plimit} viñetas por cómic.`);
+  if (req.user!.role !== "admin" && body.panels.length > plimit) throw httpError(402, `Tu plan permite hasta ${plimit} viñetas por cómic.`);
 
   const [c] = await db.insert(comics).values({
     userId: req.user!.id, title: body.title, synopsis: body.synopsis, story: body.story,
@@ -111,7 +111,7 @@ comicsRouter.put("/:id", async (req, res) => {
   await loadOwned(req.user!.id, id);
   const body = comicIn.parse(req.body);
   const plan = PLANS[effectivePlan(req.user!)];
-  if (body.panels.length > plan.limits.panelsPerComic) {
+  if (req.user!.role !== "admin" && body.panels.length > plan.limits.panelsPerComic) {
     throw httpError(402, `Tu plan ${plan.name} permite hasta ${plan.limits.panelsPerComic} viñetas por cómic.`);
   }
   await db.transaction(async (tx) => {
