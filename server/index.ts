@@ -1,3 +1,4 @@
+import { renewalJob } from "./routes/renewals";
 import express, { type NextFunction, type Request, type Response } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -91,6 +92,7 @@ export async function createApp(options: { serverless?: boolean } = {}) {
   // El webhook de Stripe necesita el body crudo: va ANTES de express.json().
   app.post("/api/billing/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
+  app.get("/api/cron/renewals", renewalJob);
   app.use(express.json({ limit: "1mb" }));
 
   // La app móvil manda `Authorization: Bearer <token>`; el token es el mismo id de sesión firmado de la cookie.
