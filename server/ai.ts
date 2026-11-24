@@ -223,7 +223,7 @@ export async function generateImage(prompt: string, orientation: Orientation): P
  * La imagen se descarga desde Supabase privado y solo se envía al modelo contratado.
  */
 export async function generateImageWithReference(prompt: string, orientation: Orientation, referenceUrl: string): Promise<ImageResult> {
-  if (!env.openaiKey) throw new Error("La generación por referencia todavía no está configurada.");
+  if (!env.openaiKey && !env.pollinations.key) throw new Error("Configura POLLINATIONS_API_KEY u OPENAI_API_KEY para referencias.");
   if (!cloudStorageEnabled()) throw new Error("La referencia requiere Supabase Storage privado.");
   const match = /^\/media\/([a-f0-9-]{36}\.(?:png|jpg|webp))$/.exec(referenceUrl);
   if (!match) throw new Error("Imagen de referencia inválida.");
@@ -233,6 +233,19 @@ export async function generateImageWithReference(prompt: string, orientation: Or
   if (bytes.length > 3 * 1024 * 1024) throw new Error("La referencia supera 3 MB.");
   const imageType = sniffImage(bytes);
   if (!imageType || !["png", "jpg", "webp"].includes(imageType.ext)) throw new Error("Referencia no admitida.");
+  if (env.aiProvider !== "openai" && env.pollinations.key) {
+    const body = new FormData();
+    body.append("image", new Blob([new Uint8Array(bytes)], {type:imageType.mime}), "reference."+imageType.ext);
+    body.append("model", process.env.POLLINATIONS_REFERENCE_MODEL || "klein");
+    body.append("prompt", "Preserve the recognizable identity and appearance of the supplied character across every panel. "+prompt);
+    body.append("size", orientation === "portrait" ? "1024x1536" : orientation === "landscape" ? "1536x1024" : "1024x1024");
+    body.append("response_format","b64_json");
+    const res = await fetch("https://gen.pollinations.ai/v1/images/edits",{method:"POST",headers:{authorization:`Bearer ${env.pollinations.key}`},body,signal:AbortSignal.timeout(50000)});
+    if (!res.ok) throw new Error(`Pollinations HTTP ${res.status}`);
+    const result = await res.json();
+    if (!result.data?.[0]?.b64_json) throw new Error("Respuesta sin imagen");
+    return asImage(Buffer.from(result.data[0].b64_json,"base64"));
+  }
   const input = await toFile(bytes, "personaje." + imageType.ext, { type: imageType.mime });
   const size = orientation === "square" ? "1024x1024" : orientation === "portrait" ? "1024x1536" : "1536x1024";
   const result = await openai().images.edit({
