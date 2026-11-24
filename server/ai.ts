@@ -104,7 +104,7 @@ const pollinationsText: TextCall = async (system, user, temperature) => {
       model: p.textModel, temperature, seed: randomInt(1, 1_000_000),
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
     }),
-  }, 90_000, pollinationsQueue);
+  }, 12_000, pollinationsQueue);
   const json: any = await res.json();
   const content = json?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) throw new Error("respuesta vacía");
@@ -120,7 +120,7 @@ const geminiText: TextCall = async (system, user, temperature) => {
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: { temperature, responseMimeType: "application/json" },
     }),
-  }, 60_000);
+  }, 12_000);
   const json: any = await res.json();
   const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("");
   if (!text) throw new Error("respuesta vacía");
@@ -138,9 +138,24 @@ const openaiText: TextCall = async (system, user, temperature) => {
   return c.choices[0]?.message?.content ?? "";
 };
 
+const groqText: TextCall = async (system, user, temperature) => {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {"content-type":"application/json", authorization: "Bearer " + process.env.GROQ_API_KEY},
+    body: JSON.stringify({model: process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile", temperature, response_format:{type:"json_object"}, messages:[{role:"system",content:system},{role:"user",content:user}]}),
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!res.ok) throw new Error("Groq HTTP " + res.status);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || !content.trim()) throw new Error("respuesta vacía");
+  return content;
+};
+
 function textSteps(): [string, TextCall][] {
   if (env.aiProvider === "openai") return [["openai", openaiText]];
   const steps: [string, TextCall][] = [];
+  if (process.env.GROQ_API_KEY) steps.push(["groq", groqText]);
   if (env.geminiKey) steps.push(["gemini", geminiText]);
   if (env.pollinations.enabled) steps.push(["pollinations", pollinationsText]);
   return steps;
