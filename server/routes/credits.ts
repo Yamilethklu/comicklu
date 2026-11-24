@@ -4,9 +4,9 @@ import { db } from "../db";
 import { users, userCredits, creditTransactions } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { getStripe } from "../stripe";
-import { env } from "../env";
+import { env, stripeEnabled } from "../env";
 import { httpError } from "../ssrf";
-import { eq } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 export const creditsRouter = Router();
 creditsRouter.use(requireAuth);
@@ -19,11 +19,9 @@ const PACKAGES: { id: string; label: string; credits: number; priceCents: number
 
 /** Ver saldo de créditos del usuario. */
 creditsRouter.get("/balance", async (req, res) => {
-  let [uc] = await db.select().from(userCredits).where(eq(userCredits.userId, req.user!.id));
-  if (!uc) {
-    [uc] = await db.insert(userCredits).values({ userId: req.user!.id, balance: 0 }).returning();
-  }
-  res.json({ balance: uc.balance });
+  const [uc] = await db.select().from(userCredits).where(eq(userCredits.userId, req.user!.id));
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json({ balance: uc?.balance ?? 0 });
 });
 
 /** Listar paquetes de créditos disponibles. */
@@ -37,12 +35,8 @@ creditsRouter.post("/purchase", async (req, res) => {
   const pkg = PACKAGES.find((p) => p.id === packageId);
   if (!pkg) throw httpError(400, "Paquete de créditos no válido");
 
+  if (!stripeEnabled() || !env.stripeWebhookSecret) throw httpError(503, "Los pagos de créditos aún no están configurados.");
   const user = req.user!;
-  let [uc] = await db.select().from(userCredits).where(eq(userCredits.userId, user.id));
-  if (!uc) {
-    [uc] = await db.insert(userCredits).values({ userId: user.id, balance: 0 }).returning();
-  }
-
   // Asegurar customer de Stripe
   const { ensureCustomer } = await import("../stripe");
   const customer = await ensureCustomer(user);
@@ -53,27 +47,41 @@ creditsRouter.post("/purchase", async (req, res) => {
     client_reference_id: user.id,
     line_items: [{ price_data: {
       currency: "usd",
-      product_data: { name: `Créditos Panelforge — ${pkg.label} (${pkg.credits} créditos)` },
+      product_data: { name: `KluCredits ComicKlu — ${pkg.label} (${pkg.credits} créditos)` },
       unit_amount: pkg.priceCents,
     }, quantity: 1 }],
     success_url: `${env.appUrl}/account?credits=success`,
     cancel_url: `${env.appUrl}/account?credits=cancelled`,
-    metadata: { userId: user.id, credits: String(pkg.credits), packageId: pkg.id },
+    metadata: { kind: "comic_credits", userId: user.id, credits: String(pkg.credits), packageId: pkg.id },
   });
   res.json({ url: session.url });
 });
 
-/** Añadir créditos tras un pago exitoso (llamado desde webhook o sync). */
-async function addCredits(userId: string, amount: number, reference?: string) {
-  await db.transaction(async (tx) => {
-    let [uc] = await tx.select().from(userCredits).where(eq(userCredits.userId, userId));
-    if (!uc) {
-      [uc] = await tx.insert(userCredits).values({ userId, balance: amount }).returning();
-    } else {
-      await tx.update(userCredits).set({ balance: uc.balance + amount, updatedAt: new Date() }).where(eq(userCredits.userId, userId));
-    }
-    await tx.insert(creditTransactions).values({ userId, type: "purchase", amount, reference });
+/** Registrar exclusivamente pagos de paquetes propios, con bloqueo transaccional por usuario. */
+export async function recordCreditPayment(session: import("stripe").default.Checkout.Session) {
+  const meta = session.metadata;
+  if (session.mode !== "payment" || session.payment_status !== "paid" || meta?.kind !== "comic_credits") return;
+  const pkg = PACKAGES.find(p => p.id === meta.packageId);
+  const userId = meta.userId;
+  const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
+  if (!pkg || !userId || session.client_reference_id !== userId || !customer ||
+      session.currency !== "usd" || session.amount_total !== pkg.priceCents ||
+      session.amount_subtotal !== pkg.priceCents || Number(meta.credits) !== pkg.credits) return;
+  await db.transaction(async tx => {
+    const [owner] = await tx.select({id: users.id, customer: users.stripeCustomerId}).from(users).where(eq(users.id,userId)).for("update");
+    if (!owner || owner.customer !== customer) return;
+    const [prior] = await tx.select({id: creditTransactions.id}).from(creditTransactions)
+      .where(and(eq(creditTransactions.userId,userId),eq(creditTransactions.type,"purchase"),eq(creditTransactions.reference,session.id))).limit(1);
+    if (prior) return;
+    await tx.insert(userCredits).values({userId,balance:pkg.credits}).onConflictDoUpdate({
+      target:userCredits.userId,set:{balance:sql`${userCredits.balance} + ${pkg.credits}`,updatedAt:new Date()}
+    });
+    await tx.insert(creditTransactions).values({userId,type:"purchase",amount:pkg.credits,reference:session.id});
   });
 }
-
-export { addCredits };
+creditsRouter.get("/history", async (req,res) => {
+  const rows = await db.select({id:creditTransactions.id,type:creditTransactions.type,amount:creditTransactions.amount,createdAt:creditTransactions.createdAt})
+    .from(creditTransactions).where(eq(creditTransactions.userId,req.user!.id)).orderBy(desc(creditTransactions.createdAt)).limit(100);
+  res.setHeader("Cache-Control","private, no-store");
+  res.json(rows);
+});

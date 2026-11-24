@@ -8,7 +8,7 @@ import { requireAuth, publicUser } from "../auth";
 import { env, stripeEnabled, checkoutEnabled } from "../env";
 import { getStripe, priceFor, ensureCustomer, applySubscription, syncCustomer } from "../stripe";
 import { refreshUser } from "../usage";
-import { addCredits } from "./credits";
+import { recordCreditPayment } from "./credits";
 
 export const billingRouter = Router();
 
@@ -173,9 +173,13 @@ export async function stripeWebhook(req: Request, res: Response) {
         if (s.mode === "payment" && s.metadata?.kind === "comic_pdf") {
           await recordPdfPayment(s);
         }
-        if (s.mode === "payment" && s.payment_status === "paid" && s.metadata?.credits) {
-          await addCredits(typeof s.client_reference_id === "string" ? s.client_reference_id : s.metadata.userId, Number(s.metadata.credits), s.id);
-        }
+        await recordCreditPayment(s);
+        break;
+      }
+      case "checkout.session.async_payment_succeeded": {
+        const s = event.data.object as Stripe.Checkout.Session;
+        await recordPdfPayment(s);
+        await recordCreditPayment(s);
         break;
       }
       case "customer.subscription.created":
@@ -189,10 +193,11 @@ export async function stripeWebhook(req: Request, res: Response) {
           await applySubscription(latest);
         }
         break;
+      case "invoice.paid":
       case "invoice.payment_failed": {
         const inv = event.data.object as Stripe.Invoice;
         const cust = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
-        console.warn(`[stripe] pago fallido para customer ${cust}`);
+        if (event.type === "invoice.payment_failed") console.warn(`[stripe] pago fallido para customer ${cust}`);
         if (cust) {
           const [u] = await db.select().from(users).where(eq(users.stripeCustomerId, cust));
           if (u) await syncCustomer(u);
