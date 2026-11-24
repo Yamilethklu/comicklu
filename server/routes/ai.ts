@@ -168,3 +168,21 @@ aiRouter.post("/voice", async (req, res) => {
     throw httpError(502, "No se pudo generar la voz. No se descontó de tu plan.");
   }
 });
+
+ // Página completa: una sola ilustración con composición y rotulación integradas.
+aiRouter.post("/page", async (req, res) => {
+  const b = z.object({ idea: z.string().trim().min(10).max(700), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6) }).parse(req.body);
+  requireAi();
+  const refund = await consume(req.user!, "image");
+  try {
+    const prompt = `Complete portrait comic PAGE, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Tell a coherent beginning, middle and ending. Short readable speech bubbles and narration boxes in ${b.language}, correct spelling, no watermark. Story: ${b.idea}`;
+    const { buf, ext } = await generateImage(prompt, "portrait");
+    const url = await saveBuffer(buf, ext);
+    await db.insert(assets).values({ userId: req.user!.id, type: "image", url, prompt: b.idea });
+    res.status(201).json({ url });
+  } catch (e) {
+    await refund();
+    console.error("[ai/page]", (e as Error).message);
+    throw httpError(502, "No se pudo generar la página. No se descontó de tu plan.");
+  }
+});

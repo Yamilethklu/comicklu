@@ -50,7 +50,8 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-        <button className="btn-pop btn-shine" onClick={() => { setError(null); create.mutate(); }} disabled={create.isPending}>
+        <Link href="/generar" className="btn-pop btn-shine">✨ Generar cómic con IA</Link>
+        <button className="btn-ghost" onClick={() => { setError(null); create.mutate(); }} disabled={create.isPending}>
           {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Nuevo cómic
         </button>
       </div>

@@ -12,6 +12,7 @@ import Notifications from "@/pages/Notifications";
 const Opiniones = lazy(() => import("@/pages/Opiniones"));
 const Administracion = lazy(() => import("@/pages/Administracion"));
 const Creador = lazy(() => import("@/pages/Creador"));
+const ComicGenerator = lazy(() => import("@/pages/ComicGenerator"));
 const Studio = lazy(() => import("@/pages/Studio"));
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/admin"><Protected><Administracion /></Protected></Route>
           <Route path="/pricing"><Redirect to="/precios" /></Route>
           <Route path="/creador/:userId"><Creador /></Route>
+          <Route path="/generar"><Protected><ComicGenerator /></Protected></Route>
           <Route path="/dashboard"><Protected><Dashboard /></Protected></Route>
           <Route path="/account"><Protected><Account /></Protected></Route>
           <Route path="/notifications"><Protected><Notifications /></Protected></Route>
