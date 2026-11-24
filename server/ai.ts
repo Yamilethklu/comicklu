@@ -152,11 +152,24 @@ const groqText: TextCall = async (system, user, temperature) => {
   return content;
 };
 
+const routerText: TextCall = async (system,user,temperature) => {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method:"POST", headers:{"content-type":"application/json",authorization:"Bearer "+process.env.OPENROUTER_API_KEY},
+    body:JSON.stringify({model:"openrouter/free",temperature,messages:[{role:"system",content:system},{role:"user",content:user}]}),
+    signal:AbortSignal.timeout(10000)
+  });
+  if (!res.ok) throw new Error("OpenRouter HTTP "+res.status);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || !content.trim()) throw new Error("respuesta vacía");
+  return content;
+};
 function textSteps(): [string, TextCall][] {
   if (env.aiProvider === "openai") return [["openai", openaiText]];
   const steps: [string, TextCall][] = [];
   if (process.env.GROQ_API_KEY) steps.push(["groq", groqText]);
   if (env.geminiKey) steps.push(["gemini", geminiText]);
+  if (process.env.OPENROUTER_API_KEY) steps.push(["openrouter-free", routerText]);
   if (env.pollinations.enabled) steps.push(["pollinations", pollinationsText]);
   return steps;
 }
