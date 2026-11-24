@@ -3,7 +3,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { db } from "../db";
-import { comics, pdfOrders, siteFeedback, users } from "../../shared/schema";
+import { comics, pdfOrders, siteFeedback, users, userCredits } from "../../shared/schema";
 import { env, stripeEnabled } from "../env";
 import { getStripe } from "../stripe";
 import { effectivePlan } from "../usage";
@@ -71,7 +71,7 @@ adminRouter.get("/summary", async (_req, res) => {
         invoicesRead++;
         if (invoicesRead > 1000) { invoicePartial = true; break; }
         const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
-        if (!customerId || !activeCustomers.has(customerId) || invoice.status !== "paid") continue;
+        if (!customerId || !activeCustomers.has(customerId) || invoice.status !== "paid" || invoice.currency !== "usd") continue;
         const invoiceLines = invoice.lines.data as unknown as Array<{ price?: { id?: string }, pricing?: { price_details?: { price?: string } } }>;
         if (invoiceLines.some(line => prices.has(line.price?.id ?? line.pricing?.price_details?.price ?? ""))) {
           total += invoice.amount_paid || 0;
@@ -109,4 +109,13 @@ adminRouter.patch("/feedback/:id", async (req, res) => {
     .where(eq(siteFeedback.id,id)).returning({id:siteFeedback.id});
   if (!updated) return res.status(404).json({message:"Comentario no encontrado"});
   res.json({ok:true});
+});
+
+adminRouter.get("/users", async (req,res) => {
+ const q=z.object({page:z.coerce.number().int().min(1).default(1),search:z.string().max(200).default(""),plan:z.enum(["all","free","pro","premium"]).default("all")}).parse(req.query);
+ const rows=await db.select({id:users.id,name:users.name,email:users.email,role:users.role,plan:users.plan,subscriptionStatus:users.subscriptionStatus,currentPeriodEnd:users.currentPeriodEnd,createdAt:users.createdAt,balance:userCredits.balance}).from(users).leftJoin(userCredits,eq(users.id,userCredits.userId)).orderBy(desc(users.createdAt),desc(users.id));
+ const needle=q.search.trim().toLowerCase();
+ const filtered=rows.map(r=>({...r,effectivePlan:effectivePlan(r)})).filter(r=>(q.plan==="all"||r.effectivePlan===q.plan)&&(!needle||r.email.toLowerCase().includes(needle)||r.name.toLowerCase().includes(needle)));
+ res.setHeader("Cache-Control","private, no-store");
+ res.json({total:filtered.length,rows:filtered.slice((q.page-1)*50,q.page*50)});
 });

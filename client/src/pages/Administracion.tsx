@@ -34,6 +34,8 @@ function Moderate({item,done}:{item:Review;done:()=>void}) {
 
 export default function Administracion() {
   const {user}=useMe();const qc=useQueryClient();
+  const [search,setSearch]=useState(""); const [plan,setPlan]=useState("all"); const [page,setPage]=useState(1);
+  const accounts=useQuery({queryKey:["admin-users",user?.id,search,plan,page],enabled:user?.role==="admin",queryFn:()=>api<{total:number;rows:{id:string;name:string;email:string;role:string;effectivePlan:string;subscriptionStatus:string|null;currentPeriodEnd:string|null;balance:number|null}[]}>("GET",`/api/admin/users?page=${page}&search=${encodeURIComponent(search)}&plan=${plan}`)});
   const summary=useQuery({queryKey:["admin-summary"],queryFn:()=>api<Summary>("GET","/api/admin/summary"),enabled:!!user});
   const feedback=useQuery({queryKey:["admin-feedback"],queryFn:()=>api<Review[]>("GET","/api/admin/feedback"),enabled:!!user});
   if(user?.role!=="admin")return <Page><p role="alert">Este espacio está reservado para administración.</p></Page>;
@@ -65,13 +67,12 @@ export default function Administracion() {
         </section>
       </div>
       <section className="frame mt-6 overflow-x-auto p-5">
-        <h2 className="text-xl font-extrabold">Últimas cuentas y suscripciones</h2>
-        <table className="mt-4 w-full min-w-[660px] text-left text-sm"><thead><tr className="border-b-2 border-ink">
-          <th className="p-2">Nombre</th><th className="p-2">Correo</th><th className="p-2">Plan efectivo</th><th className="p-2">Stripe</th><th className="p-2">Vigencia</th></tr></thead>
-          <tbody>{s.recentUsers.map(u=><tr key={u.id} className="border-b border-ink/20"><td className="p-2">{u.name}</td><td className="p-2">{u.email}</td>
-          <td className="p-2">{u.effectivePlan}</td><td className="p-2">{u.status??"—"}</td><td className="p-2">{u.periodEnd?new Date(u.periodEnd).toLocaleDateString("es-MX"):"—"}</td></tr>)}</tbody>
-        </table>
-        <p className="mt-3 text-xs text-ink/60">Se muestran las 75 cuentas más recientes; el resumen superior incluye todas.</p>
+        <h2 className="text-xl font-extrabold">Todas las cuentas y suscripciones</h2>
+        <div className="mt-3 flex flex-wrap gap-3"><input className="field" aria-label="Buscar usuario" placeholder="Nombre o correo" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}}/><select className="field" aria-label="Filtrar plan" value={plan} onChange={e=>{setPlan(e.target.value);setPage(1)}}>{["all","free","pro","premium"].map(p=><option key={p} value={p}>{p==="all"?"Todos los planes":p}</option>)}</select></div>
+        {accounts.isError && <p role="alert">{errMsg(accounts.error)}</p>}
+        {accounts.isLoading && <p>Cargando cuentas…</p>}
+        <table className="mt-4 w-full min-w-[720px] text-left text-sm"><thead><tr><th>Nombre</th><th>Correo</th><th>Plan</th><th>Estado</th><th>Vigencia</th><th>Créditos</th></tr></thead><tbody>{accounts.data?.rows.map(r=><tr key={r.id} className="border-b border-ink/20"><td className="p-2">{r.name}</td><td>{r.email}</td><td>{r.role==="admin"?"Administración":r.effectivePlan}</td><td>{r.subscriptionStatus??"—"}</td><td>{r.currentPeriodEnd?new Date(r.currentPeriodEnd).toLocaleDateString("es-MX"):"—"}</td><td>{r.balance??0}</td></tr>)}</tbody></table>
+        <div className="mt-4 flex items-center gap-3"><button className="btn-ghost" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Anterior</button><span>Página {page} · {accounts.data?.total??0} cuentas</span><button className="btn-ghost" disabled={!accounts.data||page*50>=accounts.data.total} onClick={()=>setPage(p=>p+1)}>Siguiente</button></div>
       </section>
     </>}
     <section className="mt-7">

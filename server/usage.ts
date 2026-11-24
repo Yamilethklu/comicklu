@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "./db";
-import { usage, users, comics, type User } from "../shared/schema";
+import { usage, users, comics, userCredits, creditTransactions, type User } from "../shared/schema";
 import { PLANS, METRIC_LABEL, type Metric, type PlanId } from "../shared/plans";
 
 export const currentMonth = () => new Date().toISOString().slice(0, 7);
@@ -47,7 +48,22 @@ export async function consume(user: User, metric: Metric): Promise<() => Promise
     DO UPDATE SET count = usage.count + 1 WHERE usage.count < ${limit}
     RETURNING count`);
   if (res.rows.length === 0) {
-    throw new LimitError(`Llegaste al límite mensual de ${METRIC_LABEL[metric]} de tu plan ${plan.name} (${limit}). Mejora tu plan o espera al próximo mes.`);
+    const cost = {story:1,image:2,voice:5,video:25}[metric];
+    const reference = randomUUID();
+    await db.transaction(async tx=>{
+      const debit=await tx.update(userCredits).set({balance:sql`${userCredits.balance} - ${cost}`,updatedAt:new Date()}).where(and(eq(userCredits.userId,user.id),sql`${userCredits.balance} >= ${cost}`)).returning({id:userCredits.id});
+      if (!debit.length) throw new LimitError("Cuota mensual agotada y saldo de KluCredits insuficiente.");
+      await tx.insert(creditTransactions).values({userId:user.id,type:"usage",amount:-cost,reference});
+    });
+    return async()=>{
+      await db.transaction(async tx=>{
+        await tx.select({id:users.id}).from(users).where(eq(users.id,user.id)).for("update");
+        const [prior]=await tx.select({id:creditTransactions.id}).from(creditTransactions).where(and(eq(creditTransactions.userId,user.id),eq(creditTransactions.type,"refund"),eq(creditTransactions.reference,reference))).limit(1);
+        if(prior)return;
+        await tx.update(userCredits).set({balance:sql`${userCredits.balance} + ${cost}`,updatedAt:new Date()}).where(eq(userCredits.userId,user.id));
+        await tx.insert(creditTransactions).values({userId:user.id,type:"refund",amount:cost,reference});
+      });
+    };
   }
   return async () => {
     await db.execute(sql`UPDATE usage SET count = GREATEST(count - 1, 0)
