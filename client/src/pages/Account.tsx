@@ -35,15 +35,16 @@ export default function Account() {
     api("POST", "/api/billing/sync").then(() => qc.invalidateQueries({ queryKey: ["me"] })).catch((e) => setError(errMsg(e)));
   }, [qc]);
 
-  const { data: creditBalance } = useQuery<CreditBalance>({
-    queryKey: ["credits-balance"],
+  const { data: creditBalance, isError: creditError, refetch: reloadCredits } = useQuery<CreditBalance>({
+    queryKey: ["credits-balance", user?.id],
     queryFn: () => api<CreditBalance>("GET", "/api/billing/credits/balance"),
   });
   const { data: creditPackages } = useQuery<CreditPackage[]>({
-    queryKey: ["credits-packages"],
+    queryKey: ["credits-packages", user?.id],
     queryFn: () => api<CreditPackage[]>("GET", "/api/billing/credits/packages"),
   });
 
+  const history = useQuery({queryKey:["credits-history",user?.id],enabled:!!user,queryFn:()=>api<{id:number;type:string;amount:number;createdAt:string}[]>("GET","/api/billing/credits/history")});
   const buyCredits = async (pkg: CreditPackage) => {
     try {
       const { url } = await api<{ url: string }>("POST", "/api/billing/credits/purchase", { packageId: pkg.id });
@@ -139,11 +140,12 @@ export default function Account() {
 
       <section className="frame mt-6 p-6" aria-labelledby="creditos">
         <h2 id="creditos" className="text-xl font-extrabold">
-          <CreditCard className="mr-2 h-5 w-5" aria-hidden />Créditos IA (pago único)
+          <CreditCard className="mr-2 h-5 w-5" aria-hidden />KluCredits (pago único)
         </h2>
         <p className="mt-1 text-sm text-ink/70">Compra paquetes de créditos para usar la IA sin necesidad de suscripción. Los créditos no expiran.</p>
         <div className="mt-4">
-          {creditBalance ? (
+          {user.role === "admin" ? <p className="mb-4 font-bold">Acceso administrativo sin límite interno de generación.</p> : null}
+          {creditError ? <p role="alert">No se pudo consultar el saldo. <button className="underline" onClick={()=>void reloadCredits()}>Reintentar</button></p> : creditBalance ? (
             <div className="flex items-center gap-3 mb-4">
               <span className="font-bold text-ink">{creditBalance.balance}</span>
               <span className="text-sm text-ink/60">créditos disponibles</span>
@@ -173,6 +175,14 @@ export default function Account() {
         </div>
       </section>
 
+      <section className="frame mt-6 p-6">
+        <h2 className="text-xl font-extrabold">Historial de KluCredits</h2>
+        <p className="mt-2 text-sm">Últimos 100 movimientos de tu cuenta.</p>
+        {history.isLoading && <p>Cargando movimientos…</p>}
+        {history.isError && <p role="alert">No se pudo cargar el historial. <button className="underline" onClick={()=>void history.refetch()}>Reintentar</button></p>}
+        {history.data?.length===0 && <p className="mt-3">Todavía no tienes movimientos.</p>}
+        <div className="overflow-x-auto"><table className="mt-4 w-full text-left text-sm"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Créditos</th></tr></thead><tbody>{history.data?.map(x=><tr key={x.id} className="border-b border-ink/20"><td className="py-2">{new Date(x.createdAt).toLocaleString("es-MX")}</td><td>{({purchase:"Compra",refund:"Devolución",usage:"Consumo"} as Record<string,string>)[x.type]??x.type}</td><td>{x.amount}</td></tr>)}</tbody></table></div>
+      </section>
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         <section className="frame p-6" aria-labelledby="clave">
           <h2 id="clave" className="text-xl font-extrabold">Cambiar contraseña</h2>
