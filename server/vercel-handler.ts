@@ -7,7 +7,7 @@ import type { Express } from "express";
 let appPromise: Promise<Express> | undefined;
 async function getApp(): Promise<Express> {
   if (!appPromise) {
-    appPromise = import("../server/index.js").then(({ createApp }) => createApp({ serverless: true }))
+    appPromise = import("./index").then(({ createApp }) => createApp({ serverless: true }))
       .then(({ app }) => app)
       .catch((error) => {
         appPromise = undefined; // permitir recuperación después de fallos transitorios

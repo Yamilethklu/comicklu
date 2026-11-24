@@ -5,7 +5,7 @@
   "buildCommand": "npm run check && npm run build:vercel",
   "outputDirectory": "dist/public",
   "functions": {
-    "api/handler.ts": {
+    "api/handler.mjs": {
       "maxDuration": 60
     }
   },
