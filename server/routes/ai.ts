@@ -171,7 +171,7 @@ aiRouter.post("/voice", async (req, res) => {
 
  // Página completa: una sola ilustración con composición y rotulación integradas.
 aiRouter.post("/page", async (req, res) => {
-  const b = z.object({ idea: z.string().trim().min(10).max(2400), pageNumber:z.number().int().min(1).max(22).optional(), totalPages:z.number().int().min(1).max(22).optional(), cover:z.enum(["front","back"]).optional(), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6), referenceUrl: z.string().max(100).optional() }).parse(req.body);
+  const b = z.object({ idea: z.string().trim().min(10).max(2400), pageNumber:z.number().int().min(1).max(22).optional(), totalPages:z.number().int().min(1).max(22).optional(), cover:z.enum(["front","back"]).optional(), style: z.enum(styleKeys).default("_3d"), language: z.string().trim().min(2).max(40).default("español"), panelCount: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(6), referenceUrl: z.string().max(100).optional(), cleanArt: z.boolean().default(false) }).parse(req.body);
   requireAi();
   if (b.referenceUrl) {
     if (effectivePlan(req.user!) !== "premium") throw httpError(402, "Las referencias visuales son exclusivas de Premium.");
@@ -183,7 +183,7 @@ aiRouter.post("/page", async (req, res) => {
   let refundReference: (() => Promise<void>) | undefined;
   try {
     if (b.referenceUrl && req.user!.role !== "admin") refundReference = await reserveReference(req.user!.id);
-    const prompt = b.cover ? `Portrait illustrated comic ${b.cover} cover, ${STYLES[b.style].prompt}, professional print composition, ${b.idea}, no watermark` : `Complete portrait comic PAGE, page ${b.pageNumber||1} of ${b.totalPages||1}, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Follow the supplied scene plan without repeating earlier events. Short readable speech bubbles and narration boxes in ${b.language}, correct spelling, no watermark. Story: ${b.idea}`;
+    const prompt = b.cover ? `Portrait illustrated comic ${b.cover} cover, ${STYLES[b.style].prompt}, professional print composition, ${b.idea}, no watermark` : `Complete portrait comic PAGE, page ${b.pageNumber||1} of ${b.totalPages||1}, exactly ${b.panelCount} distinct sequential panels in two columns, black borders and white gutters. ${STYLES[b.style].prompt}. Same recognizable characters throughout. Follow the supplied scene plan without repeating earlier events. ${b.cleanArt ? "Artwork only. No letters, words, speech bubbles, captions or typography. Leave clear space near the top of each panel for later lettering." : `Short readable speech bubbles and narration boxes in ${b.language}, correct spelling`}. No watermark. Story: ${b.idea}`;
     const { buf, ext } = b.referenceUrl ? await generateImageWithReference(prompt, "portrait", b.referenceUrl) : await generateImage(prompt, "portrait");
     const url = await saveBuffer(buf, ext);
     await db.insert(assets).values({ userId: req.user!.id, type: "image", url, prompt: b.idea });
