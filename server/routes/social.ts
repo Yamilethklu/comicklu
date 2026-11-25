@@ -3,18 +3,19 @@ import { and, asc, desc, eq, count, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
 import { users, comics, comicLikes, comicComments, userFollowers, referrals } from "../../shared/schema";
-import { requireAuth, publicUser } from "../auth";
+import { requireAuth } from "../auth";
 import { httpError } from "../ssrf";
 import { PLANS } from "../../shared/plans";
+import { effectivePlan } from "../usage";
 import { createNotification } from "./notifications";
 
 export const socialRouter = Router();
 
 /** Listar cómics públicos (galería). Query: ?style=&search=&limit= */
 socialRouter.get("/comics/public", async (req, res) => {
-  const { search, style, limit = "20", offset = "0" } = z.object({
-    search: z.string().optional(),
-    style: z.string().optional(),
+  const { search, style, limit, offset } = z.object({
+    search: z.string().max(200).optional(),
+    style: z.string().max(40).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(20),
     offset: z.coerce.number().int().min(0).max(10000).default(0),
   }).parse(req.query);
@@ -153,7 +154,7 @@ socialRouter.post("/comics/:id/remix", async (req, res) => {
   const [c] = await db.select().from(comics).where(and(eq(comics.id, comicId), eq(comics.isPublic, true)));
   if (!c) throw httpError(404, "Cómic público no encontrado");
   const currentCount = await db.select({ n: count() }).from(comics).where(eq(comics.userId, req.user!.id));
-  if (Number((currentCount[0] as any).n) >= PLANS.free.limits.comics) {
+  if (Number((currentCount[0] as any).n) >= PLANS[effectivePlan(req.user!)].limits.comics) {
     return res.status(402).json({ message: "Límite de cómics alcanzado para tu plan." });
   }
   const { panels } = await import("../../shared/schema");
