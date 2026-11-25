@@ -197,12 +197,12 @@ aiRouter.post("/page", async (req, res) => {
 });
 
 aiRouter.post("/book-plan", async (req, res) => {
-  const b = z.object({idea:z.string().trim().min(10).max(700),language:z.string().max(40),pageCount:z.number().int().min(1).max(20),panelCount:z.union([z.literal(4),z.literal(6),z.literal(8)])}).parse(req.body);
+  const b = z.object({idea:z.string().trim().min(10).max(1800),language:z.string().max(40),pageCount:z.number().int().min(1).max(20),panelCount:z.union([z.literal(4),z.literal(6),z.literal(8)])}).parse(req.body);
   requireAi();
   const refund = await consume(req.user!, "story");
   try {
     const schema = z.object({title:z.string().min(1).max(120),characters:z.string().min(1).max(600),pages:z.array(z.string().min(10).max(1200)).length(b.pageCount)});
-    const system = 'You are a comic writer. Output ONLY a JSON object with exactly these keys: {"title":"Book title","characters":"Visual character descriptions","pages":["Page 1 scene and dialogue"]}. The pages value MUST be an array of exactly '+b.pageCount+' strings, not objects. Each string describes '+b.panelCount+' sequential panels with short dialogue. Keep each page under 650 characters. Write all values in '+b.language+'. Maintain continuity and finish the story. No markdown.';
+    const system = 'You are a comic writer. Output ONLY a JSON object with exactly these keys: {"title":"Book title","characters":"Visual character descriptions","pages":["Page 1 scene and dialogue"]}. The pages value MUST be an array of exactly '+b.pageCount+' strings, not objects. Each string describes '+b.panelCount+' sequential panels with short dialogue. Keep each page under 650 characters. Write all values in '+b.language+'. Maintain continuity with any prior chapter context. Illustrate only the current chapter events; do not repeat previous chapters. Finish the current chapter, not necessarily the whole story. No markdown.';
     const result = await generateJson(system, b.idea, x => schema.parse(x), 0.3);
     res.json(result);
   } catch (e) {
