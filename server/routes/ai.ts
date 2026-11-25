@@ -196,8 +196,18 @@ aiRouter.post("/page", async (req, res) => {
   }
 });
 
- aiRouter.post("/book-plan", async (req,res)=>{
- const b=z.object({idea:z.string().trim().min(10).max(700),language:z.string().max(40),pageCount:z.number().int().min(1).max(20),panelCount:z.union([z.literal(4),z.literal(6),z.literal(8)])}).parse(req.body);
- requireAi();const refund=await consume(req.user!,"story");
- try {const schema=z.object({title:z.string().max(120),characters:z.string().max(600),pages:z.array(z.string().min(10).max(1200)).length(b.pageCount)});const result=await generateJson("Return JSON title, characters (consistent visual descriptions), pages (one sequential scene plan per page, each with "+b.panelCount+" panels and short exact dialogue in "+b.language+"). Exactly "+b.pageCount+" pages. Continuous story with beginning and ending.",b.idea,x=>schema.parse(x));res.json(result);}catch(e){await refund();throw httpError(502,"No se pudo preparar el guion del libro.");}
- });
+aiRouter.post("/book-plan", async (req, res) => {
+  const b = z.object({idea:z.string().trim().min(10).max(700),language:z.string().max(40),pageCount:z.number().int().min(1).max(20),panelCount:z.union([z.literal(4),z.literal(6),z.literal(8)])}).parse(req.body);
+  requireAi();
+  const refund = await consume(req.user!, "story");
+  try {
+    const schema = z.object({title:z.string().min(1).max(120),characters:z.string().min(1).max(600),pages:z.array(z.string().min(10).max(1200)).length(b.pageCount)});
+    const system = 'You are a comic writer. Output ONLY a JSON object with exactly these keys: {"title":"Book title","characters":"Visual character descriptions","pages":["Page 1 scene and dialogue"]}. The pages value MUST be an array of exactly '+b.pageCount+' strings, not objects. Each string describes '+b.panelCount+' sequential panels with short dialogue. Keep each page under 650 characters. Write all values in '+b.language+'. Maintain continuity and finish the story. No markdown.';
+    const result = await generateJson(system, b.idea, x => schema.parse(x), 0.3);
+    res.json(result);
+  } catch (e) {
+    await refund();
+    console.error("[ai/book-plan]", (e as Error).message);
+    throw httpError(502, "No se pudo preparar el guion del libro. No se descontó de tu plan.");
+  }
+});
