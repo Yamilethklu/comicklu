@@ -166,9 +166,24 @@ const routerText: TextCall = async (system,user,temperature) => {
   if (typeof content !== "string" || !content.trim()) throw new Error("respuesta vacía");
   return content;
 };
+const cloudflareText: TextCall = async (system, user, temperature) => {
+  const model = process.env.CLOUDFLARE_TEXT_MODEL || "@cf/qwen/qwen3.8-27b";
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/${model}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + process.env.CLOUDFLARE_AI_TOKEN },
+    body: JSON.stringify({ messages: [{role:"system",content:system},{role:"user",content:user}], temperature, max_tokens: 8192 }),
+    signal: AbortSignal.timeout(42000),
+  });
+  if (!res.ok) throw new Error("Cloudflare AI HTTP " + res.status);
+  const data = await res.json();
+  const content = data.result?.choices?.[0]?.message?.content ?? data.result?.response;
+  if (typeof content !== "string" || !content.trim()) throw new Error("respuesta vacía");
+  return content;
+};
 function textSteps(): [string, TextCall][] {
   if (env.aiProvider === "openai") return [["openai", openaiText]];
   const steps: [string, TextCall][] = [];
+  if (process.env.CLOUDFLARE_AI_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) steps.push(["cloudflare-qwen", cloudflareText]);
   if (process.env.GROQ_API_KEY) steps.push(["groq", groqText]);
   if (env.geminiKey) steps.push(["gemini", geminiText]);
   if (process.env.OPENROUTER_API_KEY) steps.push(["openrouter-free", routerText]);
