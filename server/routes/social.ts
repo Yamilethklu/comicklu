@@ -15,8 +15,8 @@ socialRouter.get("/comics/public", async (req, res) => {
   const { search, style, limit = "20", offset = "0" } = z.object({
     search: z.string().optional(),
     style: z.string().optional(),
-    limit: z.string().default("20"),
-    offset: z.string().default("0"),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    offset: z.coerce.number().int().min(0).max(10000).default(0),
   }).parse(req.query);
 
   const conditions: any[] = [eq(comics.isPublic, true)];
@@ -78,10 +78,13 @@ socialRouter.post("/comics/:id/like", async (req, res) => {
 /** Listar comentarios de un cómic público. */
 socialRouter.get("/comics/:id/comments", async (req, res) => {
   const comicId = Number(req.params.id);
+  const [visible] = await db.select({id: comics.id}).from(comics).where(and(eq(comics.id, comicId), or(eq(comics.isPublic, true), eq(comics.userId, req.user!.id))));
+  if (!visible) throw httpError(404, "Cómic no encontrado");
+  const pagination = z.object({limit:z.coerce.number().int().min(1).max(50).default(50),offset:z.coerce.number().int().min(0).max(10000).default(0)}).parse(req.query);
   const rows = await db.select({
     id: comicComments.id, content: comicComments.content, createdAt: comicComments.createdAt,
     userId: comicComments.userId,
-  }).from(comicComments).where(eq(comicComments.comicId, comicId)).orderBy(desc(comicComments.createdAt));
+  }).from(comicComments).where(eq(comicComments.comicId, comicId)).orderBy(desc(comicComments.createdAt)).limit(pagination.limit).offset(pagination.offset);
   const enriched = await Promise.all(rows.map(async (cm) => {
     const [u] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, cm.userId));
     return { ...cm, author: u ? { id: u.id, name: u.name } : null };
@@ -117,7 +120,7 @@ socialRouter.get("/creador/:userId", async (req, res) => {
   ]);
   const [myFollow] = await db.select().from(userFollowers).where(and(eq(userFollowers.followingId, userId), eq(userFollowers.followerId, req.user!.id)));
   res.json({
-    author: { id: u.id, name: u.name, email: u.email },
+    author: { id: u.id, name: u.name },
     comics: rows,
     followerCount: Number(followerCount),
     followingCount: Number(followingCount),
@@ -139,7 +142,7 @@ socialRouter.post("/creador/:userId/follow", async (req, res) => {
     await db.insert(userFollowers).values({ followerId: req.user!.id, followingId: userId });
     res.json({ following: true });
     if (userId !== req.user!.id) {
-      await createNotification(userId, "follow", "Nuevo seguidor", `${req.user!.name} ahora te sigue en Panelforge`, { followingId: req.user!.id }).catch(() => {});
+      await createNotification(userId, "follow", "Nuevo seguidor", `${req.user!.name} ahora te sigue en ComicKlu`, { followingId: req.user!.id }).catch(() => {});
     }
   }
 });
