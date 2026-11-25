@@ -171,12 +171,14 @@ const cloudflareText: TextCall = async (system, user, temperature) => {
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/${model}`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + process.env.CLOUDFLARE_AI_TOKEN },
-    body: JSON.stringify({ messages: [{role:"system",content:system},{role:"user",content:user}], temperature, max_tokens: 3072 }),
+    body: JSON.stringify({ messages: [{role:"system",content:system},{role:"user",content:user}], temperature, max_tokens: 4096, response_format: { type: "json_object" } }),
     signal: AbortSignal.timeout(45000),
   });
   if (!res.ok) throw new Error("Cloudflare AI HTTP " + res.status);
   const data = await res.json();
-  const content = data.result?.choices?.[0]?.message?.content ?? data.result?.response;
+  const parsed = data.result?.response;
+  if (parsed && typeof parsed === "object") return JSON.stringify(parsed);
+  const content = data.result?.choices?.[0]?.message?.content ?? parsed;
   if (typeof content !== "string" || !content.trim()) throw new Error("respuesta vacía");
   return content;
 };
