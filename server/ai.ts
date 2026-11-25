@@ -282,10 +282,12 @@ export async function generateImage(prompt: string, orientation: Orientation): P
 /** Generación basada en una referencia REAL, no en descripción textual solamente.
  * La imagen se descarga desde Supabase privado y solo se envía al modelo contratado.
  */
+export function referenceImageEnabled(): boolean {
+  return env.aiProvider === "openai" ? !!env.openaiKey : env.aiProvider !== "off" && (!!(process.env.CLOUDFLARE_AI_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) || (env.pollinations.enabled && !!env.pollinations.key));
+}
 export async function generateImageWithReference(prompt: string, orientation: Orientation, referenceUrl: string): Promise<ImageResult> {
   if (env.aiProvider === "off") throw new Error("La IA está desactivada");
-  if (env.aiProvider !== "openai" && !env.pollinations.key) throw new Error("Configura Pollinations para referencias en modo gratuito.");
-  if (!env.openaiKey && !env.pollinations.key) throw new Error("Configura POLLINATIONS_API_KEY u OPENAI_API_KEY para referencias.");
+  if (!referenceImageEnabled()) throw new Error("No hay proveedor de referencias configurado.");
   if (!cloudStorageEnabled()) throw new Error("La referencia requiere Supabase Storage privado.");
   const match = /^\/media\/([a-f0-9-]{36}\.(?:png|jpg|webp))$/.exec(referenceUrl);
   if (!match) throw new Error("Imagen de referencia inválida.");
@@ -295,7 +297,21 @@ export async function generateImageWithReference(prompt: string, orientation: Or
   if (bytes.length > 3 * 1024 * 1024) throw new Error("La referencia supera 3 MB.");
   const imageType = sniffImage(bytes);
   if (!imageType || !["png", "jpg", "webp"].includes(imageType.ext)) throw new Error("Referencia no admitida.");
-  if (env.aiProvider !== "openai" && env.pollinations.key) {
+  if (env.aiProvider !== "openai" && process.env.CLOUDFLARE_AI_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) {
+    const body = new FormData();
+    body.append("input_image_0", new Blob([new Uint8Array(bytes)], {type:imageType.mime}), "reference."+imageType.ext);
+    body.append("prompt", "Preserve the recognizable character from the reference image. "+prompt);
+    const [width,height] = SIZES[orientation];
+    body.append("width", String(width));
+    body.append("height", String(height));
+    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`, {method:"POST",headers:{authorization:"Bearer "+process.env.CLOUDFLARE_AI_TOKEN},body,signal:AbortSignal.timeout(40000)});
+    if (!res.ok) throw new Error("Cloudflare reference HTTP "+res.status);
+    if (res.headers.get("content-type")?.startsWith("image/")) return asImage(Buffer.from(await res.arrayBuffer()));
+    const data = await res.json();
+    if (typeof data.result?.image !== "string") throw new Error("Cloudflare reference: respuesta sin imagen");
+    return asImage(Buffer.from(data.result.image,"base64"));
+  }
+  if (env.aiProvider !== "openai" && env.pollinations.enabled && env.pollinations.key) {
     const body = new FormData();
     body.append("image", new Blob([new Uint8Array(bytes)], {type:imageType.mime}), "reference."+imageType.ext);
     body.append("model", process.env.POLLINATIONS_REFERENCE_MODEL || "klein");
