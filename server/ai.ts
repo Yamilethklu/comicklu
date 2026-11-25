@@ -25,6 +25,7 @@ const SIZES: Record<Orientation, [number, number]> = { square: [1024, 1024], lan
 type Step<T> = [name: string, run: () => Promise<T>];
 
 async function firstOk<T>(kind: string, steps: Step<T>[]): Promise<T> {
+  if (env.aiProvider === "off") throw new Error("La IA está desactivada");
   const errors: string[] = [];
   for (const [name, run] of steps) {
     try {
@@ -65,9 +66,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** fetch con tiempo límite y un reintento si hay error de red, 429 o 5xx. */
 async function fetchOk(url: string, init: RequestInit, timeoutMs: number, queue?: ReturnType<typeof makeLimiter>): Promise<Response> {
   let last: Error = new Error("sin respuesta");
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const attempts = process.env.VERCEL ? 1 : 2;
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const go = () => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      const go = () => fetch(url, { ...init, signal: AbortSignal.timeout(process.env.VERCEL ? Math.min(timeoutMs, 40_000) : timeoutMs) });
       const res = await (queue ? queue(go) : go());
       if (res.ok) return res;
       last = new Error(`HTTP ${res.status}`);
@@ -76,7 +78,7 @@ async function fetchOk(url: string, init: RequestInit, timeoutMs: number, queue?
       const err = e as Error;
       last = err.name === "TimeoutError" ? new Error("tiempo de espera agotado") : err;
     }
-    if (attempt === 0) await sleep(env.aiRetryDelayMs);
+    if (attempt + 1 < attempts) await sleep(env.aiRetryDelayMs);
   }
   throw last;
 }
@@ -178,7 +180,7 @@ function textSteps(): [string, TextCall][] {
 export async function generateJson<T>(system: string, user: string, validate: (x: unknown) => T, temperature = 0.9): Promise<T> {
   return firstOk("texto", textSteps().map(([name, call]): Step<T> => [name, async () => {
     let last = "sin respuesta";
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < (process.env.VERCEL ? 1 : 2); i++) {
       const raw = await call(system, user, temperature);
       try {
         return validate(extractJson(raw));
@@ -251,11 +253,13 @@ export async function generateImage(prompt: string, orientation: Orientation): P
  * La imagen se descarga desde Supabase privado y solo se envía al modelo contratado.
  */
 export async function generateImageWithReference(prompt: string, orientation: Orientation, referenceUrl: string): Promise<ImageResult> {
+  if (env.aiProvider === "off") throw new Error("La IA está desactivada");
+  if (env.aiProvider !== "openai" && !env.pollinations.key) throw new Error("Configura Pollinations para referencias en modo gratuito.");
   if (!env.openaiKey && !env.pollinations.key) throw new Error("Configura POLLINATIONS_API_KEY u OPENAI_API_KEY para referencias.");
   if (!cloudStorageEnabled()) throw new Error("La referencia requiere Supabase Storage privado.");
   const match = /^\/media\/([a-f0-9-]{36}\.(?:png|jpg|webp))$/.exec(referenceUrl);
   if (!match) throw new Error("Imagen de referencia inválida.");
-  const response = await fetch(await signedObjectUrl(match[1]), { signal: AbortSignal.timeout(30_000) });
+  const response = await fetch(await signedObjectUrl(match[1]), { signal: AbortSignal.timeout(8_000) });
   if (!response.ok) throw new Error("No se pudo consultar la imagen de referencia.");
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.length > 3 * 1024 * 1024) throw new Error("La referencia supera 3 MB.");
@@ -268,7 +272,7 @@ export async function generateImageWithReference(prompt: string, orientation: Or
     body.append("prompt", "Preserve the recognizable identity and appearance of the supplied character across every panel. "+prompt);
     body.append("size", orientation === "portrait" ? "1024x1536" : orientation === "landscape" ? "1536x1024" : "1024x1024");
     body.append("response_format","b64_json");
-    const res = await fetch("https://gen.pollinations.ai/v1/images/edits",{method:"POST",headers:{authorization:`Bearer ${env.pollinations.key}`},body,signal:AbortSignal.timeout(50000)});
+    const res = await fetch("https://gen.pollinations.ai/v1/images/edits",{method:"POST",headers:{authorization:`Bearer ${env.pollinations.key}`},body,signal:AbortSignal.timeout(40000)});
     if (!res.ok) throw new Error(`Pollinations HTTP ${res.status}`);
     const result = await res.json();
     if (!result.data?.[0]?.b64_json) throw new Error("Respuesta sin imagen");
