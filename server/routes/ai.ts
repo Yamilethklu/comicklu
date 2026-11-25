@@ -6,7 +6,7 @@ import { db } from "../db";
 import { assets, comics } from "../../shared/schema";
 import { requireAuth } from "../auth";
 import { aiEnabled } from "../env";
-import { generateImage, generateImageWithReference, generateJson, generateVoice, type VoiceName } from "../ai";
+import { generateImage, generateImageWithReference, referenceImageEnabled, generateJson, generateVoice, type VoiceName } from "../ai";
 import { consume, currentMonth, effectivePlan } from "../usage";
 import { saveBuffer } from "../files";
 import { httpError } from "../ssrf";
@@ -125,7 +125,7 @@ aiRouter.post("/image", async (req, res) => {
       characterPrompt = ` Character: ${comic.settings.characterName || "main character"}. ${comic.settings.characterDescription || ""}.`;
     }
   }
-  if (referenceUrl && !process.env.OPENAI_API_KEY && !process.env.POLLINATIONS_API_KEY)
+  if (referenceUrl && !referenceImageEnabled())
     throw httpError(503, "La generación con referencia no está configurada todavía. No se descontaron imágenes.");
   const refund = await consume(req.user!, "image");
   let refundReference: (() => Promise<void>) | undefined;
@@ -177,7 +177,7 @@ aiRouter.post("/page", async (req, res) => {
     if (effectivePlan(req.user!) !== "premium") throw httpError(402, "Las referencias visuales son exclusivas de Premium.");
     const [owned] = await db.select({id: assets.id}).from(assets).where(and(eq(assets.userId, req.user!.id), eq(assets.url,b.referenceUrl), eq(assets.type,"image")));
     if (!owned) throw httpError(403,"Referencia no autorizada.");
-    if (!process.env.OPENAI_API_KEY && !process.env.POLLINATIONS_API_KEY) throw httpError(503,"La IA con referencia requiere configurar un proveedor compatible.");
+    if (!referenceImageEnabled()) throw httpError(503,"La IA con referencia requiere configurar un proveedor compatible.");
   }
   const refund = await consume(req.user!, "image");
   let refundReference: (() => Promise<void>) | undefined;

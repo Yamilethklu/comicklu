@@ -7,3 +7,9 @@ uploads/*
 .env.mobile
 android/app/build
 ios/App/Pods
+
+.env.*
+!.env.example
+!.env.mobile.example
+*.log
+.DS_Store
