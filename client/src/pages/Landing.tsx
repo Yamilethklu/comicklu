@@ -5,42 +5,22 @@ import { useConfig, useMe } from "@/lib/hooks";
 import { STYLES } from "@shared/plans";
 import { PlanCards } from "./Pricing";
 
+function ComicArt({variant=0}: {variant?:number}) {
+ const palettes=[["#173e68","#ffcf32","#fa347c"],["#dedbd5","#fff","#222"],["#263c70","#f45c45","#ffc775"],["#191039","#fa347c","#26d9ff"],["#b9d9df","#dc776c","#f5e8ce"],["#283d87","#e45343","#ffd565"],["#222","#eee","#777"],["#23334d","#d94b39","#e6b786"]];
+ const [sky,jacket,accent]=palettes[variant%8];
+ return <svg viewBox="0 0 320 230" className="block h-full w-full" role="img" aria-label="Ilustración de una heroína sobre la ciudad">
+ <rect width="320" height="230" fill={sky}/><circle cx="252" cy="48" r="29" fill={accent} opacity=".85"/>
+ {Array.from({length:12},(_,i)=><g key={i}><rect x={i*29} y={90+(i*37)%65} width="25" height="145" fill="#10182c" stroke={accent} strokeWidth=".8"/>{Array.from({length:5},(_,j)=><rect key={j} x={i*29+5} y={155+j*12} width="5" height="6" fill={accent} opacity=".8"/>)}</g>)}
+ <g stroke="#141323" strokeWidth={variant===5?5:3} strokeLinejoin="round"><path d="M120 91 Q77 40 49 83 Q34 115 79 133 L113 111" fill="#30232c"/><path d="M91 230 L100 160 Q111 137 145 133 L190 135 Q222 146 237 230Z" fill={jacket}/><path d="M145 135 L154 230 L194 230 L181 136" fill="#182039"/><path d="M147 118 L143 143 L165 160 L185 137 L180 111" fill="#d69b70"/><path d="M121 57 Q157 27 194 58 L205 93 L192 104 L188 122 Q165 144 143 123 L125 104Z" fill="#efb58a"/><path d="M118 104 Q97 70 122 45 Q157 20 190 45 Q211 57 207 83 L185 62 L178 89 L160 62 L145 93 L137 75 L129 106Z" fill="#30232c"/><path d="M171 94 L187 91 M178 115 L189 113" fill="none"/><ellipse cx="183" cy="97" rx="3" ry="5" fill="#141323"/><path d="M110 158 L132 177 L117 193 L139 230 M209 153 L192 176 L210 192 L192 230" fill="none"/><path d="M104 181 L121 181 L115 196Z" fill={accent}/></g>
+ {variant===3&&Array.from({length:16},(_,i)=><path key={i} d={`M${i*23} 0 l-30 65`} stroke="#9eeaff" opacity=".5"/>)}
+ </svg>
+}
 function HeroPage() {
-  // Una página de cómic hecha con CSS: el primer vistazo ya es una viñeta, con stickers flotando.
-  return (
-    <div className="relative w-full max-w-[460px]" aria-hidden="true">
-      <div className="frame grid aspect-[4/5] w-full grid-cols-6 grid-rows-6 gap-2 bg-ink p-2 shadow-hard-lg rotate-1">
-        <div className="relative col-span-4 row-span-3 overflow-hidden rounded-md border-[3px] border-ink bg-gradient-to-br from-zap to-grape">
-          <div className="halftone absolute inset-0 opacity-20" />
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-ink/80" />
-          <div className="absolute bottom-3 left-4 right-4 h-3 rounded-full bg-sun" />
-          <div className="bubble absolute left-4 top-4 px-3 py-2 font-display text-lg leading-tight">¡La ciudad<br />no duerme!</div>
-        </div>
-        <div className="relative col-span-2 row-span-2 overflow-hidden rounded-md border-[3px] border-ink bg-pop">
-          <div className="halftone absolute inset-0 opacity-25" />
-          <div className="absolute inset-0 grid place-items-center font-display text-5xl text-white drop-shadow-[3px_3px_0_#16132b]">ZAP</div>
-        </div>
-        <div className="relative col-span-2 row-span-1 overflow-hidden rounded-md border-[3px] border-ink bg-sun">
-          <div className="absolute inset-0 grid place-items-center font-display text-xl">¡BAM!</div>
-        </div>
-        <div className="relative col-span-3 row-span-3 overflow-hidden rounded-md border-[3px] border-ink bg-gradient-to-t from-mint to-sun">
-          <div className="absolute -bottom-6 left-6 h-28 w-28 rounded-full border-[3px] border-ink bg-white" />
-          <div className="absolute right-3 top-3 rounded-md border-[3px] border-ink bg-white px-2 py-1 text-xs font-extrabold">Capítulo 1</div>
-        </div>
-        <div className="relative col-span-3 row-span-3 overflow-hidden rounded-md border-[3px] border-ink bg-white">
-          <div className="halftone absolute inset-0 opacity-30" />
-          <div className="bubble bubble-r absolute bottom-6 left-4 right-4 rounded-[50%] px-4 py-3 text-center text-sm font-extrabold">Pon voz a tu historia</div>
-        </div>
-      </div>
-      {/* Stickers flotantes */}
-      <div className="burst absolute -left-8 -top-6 grid h-24 w-24 animate-float place-items-center bg-sun font-display text-2xl leading-none ring-0" style={{ ["--r" as string]: "-12deg" }}>
-        <span className="-rotate-12 text-center">¡IA<br />POW!</span>
-      </div>
-      <div className="absolute -bottom-5 -right-3 animate-float-slow rounded-lg border-[3px] border-ink bg-mint px-3 py-1.5 text-sm font-extrabold shadow-hard-sm" style={{ ["--r" as string]: "5deg" }}>
-        MP4 listo en minutos
-      </div>
-    </div>
-  );
+ return <div className="relative w-full max-w-[460px] rotate-1 border-[4px] border-ink bg-[#fff5d8] p-3 shadow-hard-lg">
+ <div className="halftone border-[3px] border-ink bg-pop p-2 text-center"><div className="font-display text-5xl italic text-sun drop-shadow-[3px_3px_0_#16132b] md:text-6xl">ComicKlu</div><div className="bg-ink font-display text-xl text-white">HERO PAGE</div></div>
+ <div className="relative mt-2 overflow-hidden border-[3px] border-ink"><ComicArt/><span className="bubble absolute right-2 top-2 bg-white px-3 py-2 text-sm font-extrabold">¡La ciudad no duerme!</span></div>
+ <div className="mt-2 grid grid-cols-2 gap-2"><div className="relative overflow-hidden border-[3px] border-ink"><ComicArt variant={3}/><span className="absolute bottom-1 left-1 -rotate-6 bg-sun px-2 font-display text-3xl text-ink">¡ZAP!</span></div><div className="overflow-hidden border-[3px] border-ink"><ComicArt variant={0}/></div></div>
+ <div className="mt-2 bg-ink p-2 text-center font-display text-xl text-sun">TU HISTORIA COMIENZA AQUÍ</div></div>
 }
 
 const STEPS = [
@@ -101,11 +81,9 @@ export default function Landing() {
       <section className="mt-16" aria-labelledby="estilos">
         <h2 id="estilos" className="title-comic text-4xl">Ocho estilos, un solo estudio</h2>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {(Object.entries(STYLES) as [keyof typeof STYLES, { name: string; prompt: string }][]).map(([k, s]) => (
+          {(Object.entries(STYLES) as [keyof typeof STYLES, { name: string; prompt: string }][]).map(([k, s], i) => (
             <div key={k} className="frame frame-hover overflow-hidden shadow-hard">
-              <div className={`halftone relative grid h-28 place-items-center border-b-[3px] border-ink ${STYLE_ART[k].bg}`}>
-                <span className="rounded-md border-[3px] border-ink bg-white px-3 py-1 font-display text-2xl shadow-hard-sm">{STYLE_ART[k].tag}</span>
-              </div>
+              <div className="aspect-[4/3] overflow-hidden border-b-[3px] border-ink"><ComicArt variant={i}/></div>
               <div className="p-4">
                 <h3 className="text-lg font-extrabold">{s.name}</h3>
                 <p className="mt-1 text-sm text-ink/70">{STYLE_ART[k].d}</p>
@@ -121,7 +99,7 @@ export default function Landing() {
           {STEPS.map((s, i) => (
             <li key={s.t} className="frame frame-hover relative p-5 shadow-hard">
               <span className={`absolute -right-3 -top-4 grid h-10 w-10 rotate-6 place-items-center rounded-full border-[3px] border-ink font-display text-xl shadow-hard-sm ${s.c}`}>{i + 1}</span>
-              <s.icon className="h-8 w-8" aria-hidden />
+              <div className="mb-4 overflow-hidden rounded-md border-[3px] border-ink bg-[#fff5d8]"><div className="bg-ink px-3 py-2 text-xs font-bold text-white">{["Editor de guion","Estudio de ilustración","Biblioteca de cómics"][i]}</div>{i===1?<ComicArt/>:i===0?<div className="space-y-2 p-3">{["La llegada","El encuentro","La aventura"].map((t,n)=><div key={t} className="border-2 border-ink bg-white p-2 text-xs font-bold text-ink">PANEL {n+1} · {t}</div>)}</div>:<div className="p-3"><div className="mb-2 bg-pop p-2 text-center font-bold text-white">▶ Narración</div><ComicArt variant={2}/></div>}</div><s.icon className="h-8 w-8" aria-hidden />
               <h3 className="mt-3 text-lg font-extrabold">{s.t}</h3>
               <p className="mt-1 text-sm text-ink/70">{s.d}</p>
             </li>
