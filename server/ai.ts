@@ -301,7 +301,7 @@ export async function generateImageWithReference(prompt: string, orientation: Or
   if (env.aiProvider !== "openai" && process.env.CLOUDFLARE_AI_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) {
     const body = new FormData();
     body.append("input_image_0", new Blob([new Uint8Array(bytes)], {type:imageType.mime}), "reference."+imageType.ext);
-    body.append("prompt", "Preserve the recognizable character from the reference image. "+prompt);
+    body.append("prompt", "REFERENCE CHARACTER LOCK: Preserve the complete character design from the supplied image, including head silhouette, all attached appendages, foliage, accessories, body proportions, colors, textures and distinctive features. Never remove, replace or merge character features into the background. If the reference is a palm-tree character, its full crown of green palm fronds and coconuts must remain physically attached to its head and clearly visible, with enough framing space above it. Change only pose, expression, action and setting as requested. Preserve product packaging appearance where present. Scene: "+prompt);
     const [width,height] = SIZES[orientation];
     body.append("width", String(width));
     body.append("height", String(height));
