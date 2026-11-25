@@ -171,8 +171,8 @@ const cloudflareText: TextCall = async (system, user, temperature) => {
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/${model}`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + process.env.CLOUDFLARE_AI_TOKEN },
-    body: JSON.stringify({ messages: [{role:"system",content:system},{role:"user",content:user}], temperature, max_tokens: 8192 }),
-    signal: AbortSignal.timeout(42000),
+    body: JSON.stringify({ messages: [{role:"system",content:system},{role:"user",content:user}], temperature, max_tokens: 4096, chat_template_kwargs: { enable_thinking: false } }),
+    signal: AbortSignal.timeout(50000),
   });
   if (!res.ok) throw new Error("Cloudflare AI HTTP " + res.status);
   const data = await res.json();
