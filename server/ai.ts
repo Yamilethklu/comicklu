@@ -253,10 +253,23 @@ async function openaiImage(prompt: string, o: Orientation): Promise<ImageResult>
   throw new Error("respuesta de imagen vacía");
 }
 
+async function cloudflareImage(prompt: string, o: Orientation): Promise<ImageResult> {
+  const [width,height] = SIZES[o];
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`, {
+    method:"POST", headers:{"content-type":"application/json",authorization:"Bearer "+process.env.CLOUDFLARE_AI_TOKEN},
+    body:JSON.stringify({prompt,width,height,steps:4}), signal:AbortSignal.timeout(40000)
+  });
+  if (!res.ok) throw new Error("Cloudflare imagen HTTP "+res.status);
+  const data = await res.json();
+  if (typeof data.result?.image !== "string") throw new Error("Cloudflare no devolvió imagen");
+  return asImage(Buffer.from(data.result.image,"base64"));
+}
+
 export async function generateImage(prompt: string, orientation: Orientation): Promise<ImageResult> {
   const steps: Step<ImageResult>[] = [];
   if (env.aiProvider === "openai") steps.push(["openai", () => openaiImage(prompt, orientation)]);
   else {
+    if (process.env.CLOUDFLARE_AI_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) steps.push(["cloudflare-flux", () => cloudflareImage(prompt, orientation)]);
     if (env.hfToken) steps.push(["huggingface", () => huggingFaceImage(prompt, orientation)]);
     if (env.pollinations.enabled) steps.push(["pollinations", () => pollinationsImage(prompt, orientation)]);
   }
