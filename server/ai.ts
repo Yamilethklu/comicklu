@@ -262,6 +262,7 @@ async function cloudflareImage(prompt: string, o: Orientation): Promise<ImageRes
     body:JSON.stringify({prompt,width,height,steps:4}), signal:AbortSignal.timeout(40000)
   });
   if (!res.ok) throw new Error("Cloudflare imagen HTTP "+res.status);
+  if (res.headers.get("content-type")?.startsWith("image/")) return asImage(Buffer.from(await res.arrayBuffer()));
   const data = await res.json();
   if (typeof data.result?.image !== "string") throw new Error("Cloudflare no devolvió imagen");
   return asImage(Buffer.from(data.result.image,"base64"));
